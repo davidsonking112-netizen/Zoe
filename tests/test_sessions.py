@@ -53,19 +53,17 @@ def test_closed_session_cannot_be_reused() -> None:
     asyncio.run(exercise())
 
 
-def test_idle_sessions_expire(monkeypatch: pytest.MonkeyPatch) -> None:
-    import zoe.sessions as sessions_module
-
+def test_idle_sessions_expire() -> None:
     async def exercise() -> None:
-        now = [100.0]
-        monkeypatch.setattr(sessions_module.time, "monotonic", lambda: now[0])
         manager = SessionManager(idle_ttl_seconds=10)
         try:
             session = await manager.create()
-            now[0] += 11
+            session_id = str(session["session_id"])
+            # Age the session deterministically without altering the process clock.
+            manager._sessions[session_id].last_used_at -= 11
             assert await manager.list_sessions() == []
             with pytest.raises(SessionNotFoundError):
-                await manager.get_browser(str(session["session_id"]))
+                await manager.get_browser(session_id)
         finally:
             await manager.close()
 
