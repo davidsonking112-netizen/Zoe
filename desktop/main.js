@@ -24,9 +24,38 @@ let aiHistory = [];
 const tabs = new Map();
 const reservedDownloadPaths = new Set();
 const downloadHistory = [];
+const aiGuardedWebContents = new Set();
+const publicDestinationCache = new Map();
 
 
 function activeTab() { return tabs.get(activeTabId) || null; }
+function activateAIGuard(tab) {
+  if (!tab || tab.view.webContents.isDestroyed()) return;
+  tab.aiRestricted = true;
+  aiGuardedWebContents.add(tab.view.webContents.id);
+}
+function clearAIGuard(tab) {
+  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return;
+  tab.aiRestricted = false;
+  aiGuardedWebContents.delete(tab.view.webContents.id);
+}
+async function assertPublicDestinationCached(raw) {
+  const normalized = normalizeUrl(raw);
+  const hostname = new URL(normalized).hostname.toLowerCase();
+  const cached = publicDestinationCache.get(hostname);
+  if (cached && cached.expiresAt > Date.now()) {
+    if (!cached.allowed) throw new Error("AI-controlled network request blocked by destination policy.");
+    return normalized;
+  }
+  try {
+    const checked = await assertPublicHttpUrl(normalized);
+    publicDestinationCache.set(hostname, { allowed: true, expiresAt: Date.now() + 30_000 });
+    return checked;
+  } catch (error) {
+    publicDestinationCache.set(hostname, { allowed: false, expiresAt: Date.now() + 5_000 });
+    throw error;
+  }
+}
 
 function reportNotice(message, error = false) {
   if (!windowRef || windowRef.isDestroyed()) return;
@@ -401,10 +430,11 @@ async function findPageText(webContents, query, forward = true, findNext = false
   })()`);
 }
 
-async function performAction(action) {
+async function performAction(action, {fromAI = false} = {}) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
     const url = await assertPublicHttpUrl(resolveAddressInput(action.url));
+    if (fromAI) activateAIGuard(activeTab());
     return withActiveTab(async wc => { await wc.loadURL(url); return {success:true,url:redactSensitiveUrl(wc.getURL())}; });
   }
   if (action.type === "inspect") return pageSnapshot();
@@ -441,6 +471,7 @@ async function performAction(action) {
     });
     if (approval.response !== 1) throw new Error("Cancelled by you; Zoe did not perform the action.");
   }
+  if (fromAI) activateAIGuard(activeTab());
   return withActiveTab(async wc => {
     const payload = JSON.stringify({index:action.index,type:action.type,text:action.text||"",expectedName:target.name});
     const result = await wc.executeJavaScript(`(async (p) => {
@@ -520,9 +551,9 @@ async function runAI(userText) {
       try {
         args = JSON.parse(call.function.arguments || "{}");
         if (call.function.name === "inspect_page") result = await pageSnapshot();
-        else if (call.function.name === "navigate") result = await performAction({type:"navigate",url:args.url});
-        else if (call.function.name === "click_element") result = await performAction({type:"click",index:args.index,expectedName:args.expectedName});
-        else if (call.function.name === "fill_element") result = await performAction({type:"fill",index:args.index,expectedName:args.expectedName,text:args.text});
+        else if (call.function.name === "navigate") result = await performAction({type:"navigate",url:args.url},{fromAI:true});
+        else if (call.function.name === "click_element") result = await performAction({type:"click",index:args.index,expectedName:args.expectedName},{fromAI:true});
+        else if (call.function.name === "fill_element") result = await performAction({type:"fill",index:args.index,expectedName:args.expectedName,text:args.text},{fromAI:true});
         else throw new Error("Unknown tool.");
       } catch (error) { result = {error:error.message || "Action failed."}; }
       messages.push({role:"tool",tool_call_id:call.id,content:JSON.stringify(result)});
@@ -538,7 +569,7 @@ function registerIpc() {
   ipcMain.handle("zoe:new-tab", (_e,url) => createTab(resolveAddressInput(url || "https://www.google.com"),true));
   ipcMain.handle("zoe:close-tab", (_e,id) => closeTab(id));
   ipcMain.handle("zoe:select-tab", (_e,id) => { if(!tabs.has(String(id))) throw new Error("Tab not found."); activeTabId=String(id); layoutTabs(); emitState(); return tabSummary(activeTab()); });
-  ipcMain.handle("zoe:navigate", (_e,url) => withActiveTab(async wc => { const safe=assertBrowserUrl(resolveAddressInput(url)); await wc.loadURL(safe); return tabSummary(activeTab()); }));
+  ipcMain.handle("zoe:navigate", (_e,url) => withActiveTab(async wc => { clearAIGuard(activeTab()); const safe=assertBrowserUrl(resolveAddressInput(url)); await wc.loadURL(safe); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { wc.reload(); return {success:true}; }));
@@ -546,7 +577,7 @@ function registerIpc() {
   ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => findPageText(wc, "", true, false)));
   ipcMain.handle("zoe:toggle-ai", () => { aiPanelVisible=!aiPanelVisible; layoutTabs(); emitState(); return aiPanelVisible; });
   ipcMain.handle("zoe:inspect", pageSnapshot);
-  ipcMain.handle("zoe:action", (_e,action) => performAction(action));
+  ipcMain.handle("zoe:action", (_e,action) => performAction(action,{fromAI:true}));
   ipcMain.handle("zoe:ask-ai", (_e,text) => runAI(text));
   ipcMain.handle("zoe:ai-config", (_e,config) => {
     if (!config || typeof config !== "object" || typeof config.endpoint!=="string" || typeof config.model!=="string") throw new Error("Invalid AI settings.");
@@ -623,12 +654,25 @@ app.whenReady().then(async()=>{
       callback(allowed);
     }).catch(() => callback(false));
   });
-  browserSession.webRequest.onBeforeRequest((details,callback)=>{
+  browserSession.webRequest.onBeforeRequest((details, callback) => {
     try {
-      const url=new URL(details.url);
-      const blocked=["file:","javascript:","ftp:","chrome:","devtools:"].includes(url.protocol);
-      callback({cancel:blocked});
-    } catch { callback({cancel:true}); }
+      const url = new URL(details.url);
+      const blocked = ["file:", "javascript:", "ftp:", "chrome:", "devtools:"].includes(url.protocol);
+      if (blocked) {
+        callback({ cancel: true });
+      } else if (aiGuardedWebContents.has(details.webContentsId) && ["http:", "https:"].includes(url.protocol)) {
+        void assertPublicDestinationCached(details.url)
+          .then(() => callback({ cancel: false }))
+          .catch(error => {
+            console.warn("Blocked AI-controlled network request:", error.message);
+            callback({ cancel: true });
+          });
+      } else {
+        callback({ cancel: false });
+      }
+    } catch {
+      callback({ cancel: true });
+    }
   });
   browserSession.on("will-download", (_event, item) => {
     const downloadsDirectory = app.getPath("downloads");
