@@ -5,7 +5,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
 
-const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval, assertPublicHttpUrl } = require("./security");
+const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval, assertPublicHttpUrl, redactSensitiveUrl } = require("./security");
 const { BrowserDataStore } = require("./browser-data");
 
 const TOOLBAR_HEIGHT = 104;
@@ -310,8 +310,8 @@ async function withActiveTab(fn) {
   if (!tab) throw new Error("No active tab.");
   return fn(tab.view.webContents);
 }
-async function pageSnapshot() {
-  return withActiveTab(webContents => webContents.executeJavaScript(`(() => {
+async function pageSnapshot({ redactSensitive = true } = {}) {
+  const snapshot = await withActiveTab(webContents => webContents.executeJavaScript(`(() => {
     const visible = el => { const s=getComputedStyle(el), r=el.getBoundingClientRect(); return s.display!=="none" && s.visibility!=="hidden" && r.width>0 && r.height>0; };
     const text=(document.body?.innerText||"").slice(0,14000);
     const nameOf = el => {
@@ -332,7 +332,17 @@ async function pageSnapshot() {
     }));
     return {url:location.href,title:document.title,text,elements};
   })()`));
+  if (!redactSensitive) return snapshot;
+  return {
+    ...snapshot,
+    url: redactSensitiveUrl(snapshot.url),
+    elements: snapshot.elements.map(element => ({
+      ...element,
+      href: element.href ? redactSensitiveUrl(element.href) : null
+    }))
+  };
 }
+
 async function findPageText(webContents, query, forward = true, findNext = false) {
   if (typeof query !== "string" || query.length > 500) throw new Error("Find text must be 500 characters or fewer.");
   if (!query.trim()) {
@@ -394,12 +404,12 @@ async function performAction(action) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
     const url = await assertSafeAIUrl(resolveAddressInput(action.url));
-    return withActiveTab(async wc => { await wc.loadURL(url); return {success:true,url:wc.getURL()}; });
+    return withActiveTab(async wc => { await wc.loadURL(url); return {success:true,url:redactSensitiveUrl(wc.getURL())}; });
   }
   if (action.type === "inspect") return pageSnapshot();
   if (!["click","fill"].includes(action.type) || !Number.isInteger(action.index) || action.index < 0 || action.index > 79) throw new Error("Unsupported or invalid browser action.");
   if (action.type === "fill" && (typeof action.text !== "string" || action.text.length > 10000)) throw new Error("Text must be a string of at most 10,000 characters.");
-  const snapshot = await pageSnapshot();
+  const snapshot = await pageSnapshot({ redactSensitive: false });
   const target = snapshot.elements.find(el => el.index === action.index);
   if (!target) throw new Error("The selected page element no longer exists. Inspect the page again.");
   if (action.expectedName && target.name !== action.expectedName) throw new Error("The element changed since it was inspected. Inspect the page again.");
