@@ -1,5 +1,7 @@
 "use strict";
 
+const path = require("node:path");
+
 const { lookup } = require("node:dns/promises");
 const { isIP } = require("node:net");
 
@@ -115,6 +117,24 @@ function isAllowedNavigation(raw) {
 function isAllowedModelEndpoint(raw) {
   try { const url=new URL(raw); if(!["http:","https:"].includes(url.protocol)||url.username||url.password) return false; if(url.protocol==="https:") return true; return ["localhost","127.0.0.1","::1"].includes(url.hostname.replace(/^\[|\]$/g,"")); } catch { return false; }
 }
+function sanitizeDownloadFilename(rawFilename) {
+  const raw = typeof rawFilename === "string" ? rawFilename : "";
+  const filename = path.basename(raw).replace(/[<>:"/\\\\|?*\\x00-\\x1f]/g, "_") || "download";
+  return filename === "." || filename === ".." ? "download" : filename;
+}
+
+function allocateDownloadPath(downloadsDirectory, rawFilename, existsFn = () => false, reservedPaths = new Set()) {
+  const filename = sanitizeDownloadFilename(rawFilename);
+  const parsed = path.parse(filename);
+  let destination = path.join(downloadsDirectory, filename);
+  let suffix = 1;
+  while (existsFn(destination) || reservedPaths.has(destination)) {
+    destination = path.join(downloadsDirectory, parsed.name + " (" + suffix++ + ")" + parsed.ext);
+  }
+  reservedPaths.add(destination);
+  return { filename, destination };
+}
+
 function actionRequiresApproval({type, name="", elementType="", inputType="", placeholder="", autocomplete="", href="", formSubmit=false, role=""}) {
   const description = `${name} ${placeholder} ${autocomplete}`.trim();
   if (type === "click") {
