@@ -1,16 +1,19 @@
 "use strict";
 
-const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog } = require("electron");
+const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const http = require("node:http");
 const { lookup } = require("node:dns/promises");
 const { isIP } = require("node:net");
 const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, isPrivateHost, actionRequiresApproval } = require("./security");
+const { BrowserDataStore } = require("./browser-data");
 
 const TOOLBAR_HEIGHT = 104;
 const AI_PANEL_WIDTH = 350;
 const MAX_TABS = 20;
 let windowRef;
+let browserData;
 let activeTabId = null;
 let nextTabId = 1;
 let aiPanelVisible = true;
@@ -20,6 +23,100 @@ const tabs = new Map();
 
 
 function activeTab() { return tabs.get(activeTabId) || null; }
+
+function reportNotice(message, error = false) {
+  if (!windowRef || windowRef.isDestroyed()) return;
+  windowRef.webContents.send(error ? "zoe:error" : "zoe:notice", message);
+}
+
+async function recordTabVisit(tab) {
+  if (!browserData || !tab || tab.view.webContents.isDestroyed()) return;
+  const url = tab.view.webContents.getURL();
+  if (!/^https?:\\/\\//i.test(url)) return;
+  try {
+    await browserData.recordVisit({ url, title: tab.view.webContents.getTitle() || url });
+    rebuildApplicationMenu();
+  } catch (error) {
+    console.error("Could not persist browser history:", error);
+  }
+}
+
+async function openStoredUrl(url) {
+  try {
+    const safeUrl = assertBrowserUrl(url);
+    const tab = activeTab();
+    if (tab) await tab.view.webContents.loadURL(safeUrl);
+    else await createTab(safeUrl, true);
+  } catch (error) {
+    reportNotice(error.message || "Could not open this page.", true);
+  }
+}
+
+async function bookmarkCurrentPage() {
+  const tab = activeTab();
+  if (!tab || !browserData) return;
+  const url = tab.view.webContents.getURL();
+  const title = tab.view.webContents.getTitle() || url;
+  try {
+    await browserData.addBookmark({ url, title });
+    rebuildApplicationMenu();
+    reportNotice("Bookmark saved: " + title);
+  } catch (error) {
+    reportNotice(error.message || "Could not save bookmark.", true);
+  }
+}
+
+function rebuildApplicationMenu() {
+  const history = browserData ? browserData.getHistory(25) : [];
+  const bookmarks = browserData ? browserData.getBookmarks() : [];
+  const historyItems = history.length
+    ? history.map(entry => ({
+        label: (entry.title || entry.url).replace(/\\s+/g, " ").slice(0, 72),
+        toolTip: entry.url,
+        click: () => void openStoredUrl(entry.url)
+      }))
+    : [{ label: "No browsing history yet", enabled: false }];
+  const bookmarkItems = bookmarks.length
+    ? bookmarks.map(entry => ({
+        label: (entry.title || entry.url).replace(/\\s+/g, " ").slice(0, 72),
+        toolTip: entry.url,
+        submenu: [
+          { label: "Open", click: () => void openStoredUrl(entry.url) },
+          { label: "Remove bookmark", click: async () => {
+            try {
+              await browserData.removeBookmark(entry.url);
+              rebuildApplicationMenu();
+              reportNotice("Bookmark removed.");
+            } catch (error) { reportNotice(error.message || "Could not remove bookmark.", true); }
+          } }
+        ]
+      }))
+    : [{ label: "No bookmarks saved", enabled: false }];
+  const template = [
+    { label: "File", submenu: [
+      { label: "New Tab", accelerator: "CmdOrCtrl+T", click: () => void createTab("https://www.google.com", true) },
+      { label: "Close Tab", accelerator: "CmdOrCtrl+W", click: () => { if (activeTabId) closeTab(activeTabId); } },
+      { type: "separator" }, { role: "quit" }
+    ] },
+    { label: "Edit", submenu: [
+      { role: "undo" }, { role: "redo" }, { type: "separator" }, { role: "cut" }, { role: "copy" },
+      { role: "paste" }, { role: "selectAll" }
+    ] },
+    { label: "View", submenu: [
+      { role: "reload" }, { role: "forceReload" }, { role: "toggleDevTools" }, { type: "separator" },
+      { role: "togglefullscreen" }
+    ] },
+    { label: "History", submenu: [
+      { label: "Reopen current page", click: () => { const tab = activeTab(); if (tab) void openStoredUrl(tab.view.webContents.getURL()); } },
+      { type: "separator" }, ...historyItems
+    ] },
+    { label: "Bookmarks", submenu: [
+      { label: "Bookmark This Page", accelerator: "CmdOrCtrl+D", click: () => void bookmarkCurrentPage() },
+      { type: "separator" }, ...bookmarkItems
+    ] }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
 function tabSummary(tab) {
   return { id: tab.id, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() || "New tab", loading: tab.view.webContents.isLoading(), canGoBack: tab.view.webContents.navigationHistory.canGoBack(), canGoForward: tab.view.webContents.navigationHistory.canGoForward() };
 }
@@ -86,9 +183,9 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   view.webContents.on("will-redirect", (event, target) => {
     try { assertBrowserUrl(target); } catch { event.preventDefault(); windowRef.webContents.send("zoe:error", "Blocked redirect to an unsupported URL scheme."); }
   });
-  view.webContents.on("did-navigate", emitState);
-  view.webContents.on("did-navigate-in-page", emitState);
-  view.webContents.on("page-title-updated", emitState);
+  view.webContents.on("did-navigate", () => { void recordTabVisit(tab); emitState(); });
+  view.webContents.on("did-navigate-in-page", () => { void recordTabVisit(tab); emitState(); });
+  view.webContents.on("page-title-updated", () => { void recordTabVisit(tab); emitState(); });
   view.webContents.on("did-start-loading", emitState);
   view.webContents.on("did-stop-loading", emitState);
   if (select) activeTabId = id;
@@ -281,12 +378,48 @@ function createWindow() {
   windowRef.on("closed",()=>{windowRef=null;});
 }
 app.whenReady().then(async()=>{
-  session.fromPartition("persist:zoe-browser").webRequest.onBeforeRequest((details,callback)=>{
+  const dataPath = path.join(app.getPath("userData"), "browser-data.json");
+  browserData = new BrowserDataStore(dataPath);
+  try {
+    await browserData.load();
+  } catch (error) {
+    console.error("Browser data file is invalid; preserving it and starting a fresh store:", error);
+    try { fs.renameSync(dataPath, dataPath + ".corrupt-" + Date.now()); } catch {}
+    await browserData.load();
+  }
+  rebuildApplicationMenu();
+  const browserSession = session.fromPartition("persist:zoe-browser");
+  browserSession.webRequest.onBeforeRequest((details,callback)=>{
     try {
       const url=new URL(details.url);
       const blocked=["file:","javascript:","ftp:","chrome:","devtools:"].includes(url.protocol);
       callback({cancel:blocked});
     } catch { callback({cancel:true}); }
+  });
+  browserSession.on("will-download", (_event, item) => {
+    const downloadsDirectory = app.getPath("downloads");
+    fs.mkdirSync(downloadsDirectory, { recursive: true });
+    const requestedName = path.basename(item.getFilename()).replace(/[<>:"/\\\\|?*\\x00-\\x1f]/g, "_") || "download";
+    const parsedName = path.parse(requestedName);
+    let destination = path.join(downloadsDirectory, requestedName);
+    let suffix = 1;
+    while (fs.existsSync(destination)) {
+      destination = path.join(downloadsDirectory, parsedName.name + " (" + suffix++ + ")" + parsedName.ext);
+    }
+    item.setSavePath(destination);
+    reportNotice("Downloading " + requestedName + " to your Downloads folder.");
+    item.on("updated", (_downloadEvent, state) => {
+      if (state === "interrupted") reportNotice("Download interrupted: " + requestedName, true);
+      else if (windowRef && !windowRef.isDestroyed()) {
+        windowRef.webContents.send("zoe:download-progress", {
+          filename: requestedName, state, receivedBytes: item.getReceivedBytes(), totalBytes: item.getTotalBytes()
+        });
+      }
+    });
+    item.once("done", (_downloadEvent, state) => {
+      if (state === "completed") reportNotice("Download completed: " + requestedName);
+      else if (state !== "cancelled") reportNotice("Download " + state + ": " + requestedName, true);
+    });
   });
   registerIpc(); createWindow();
   if (process.env.ZOE_SMOKE_TEST === "1") {
