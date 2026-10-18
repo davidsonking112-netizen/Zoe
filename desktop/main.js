@@ -14,6 +14,9 @@ const AI_PANEL_WIDTH = 350;
 const MAX_TABS = 20;
 let windowRef;
 let browserData;
+let sessionSaveTimer;
+let allowQuitAfterSave = false;
+let quitSaveStarted = false;
 let activeTabId = null;
 let nextTabId = 1;
 let aiPanelVisible = true;
@@ -30,6 +33,23 @@ function reportNotice(message, error = false) {
   windowRef.webContents.send(error ? "zoe:error" : "zoe:notice", message);
 }
 
+async function persistOpenTabs() {
+  if (!browserData) return;
+  const openTabs = [...tabs.values()].map(tab => ({
+    url: tab.view.webContents.getURL(),
+    title: tab.view.webContents.getTitle() || tab.view.webContents.getURL()
+  })).filter(entry => /^https?:\/\//i.test(entry.url));
+  await browserData.saveSessionTabs(openTabs);
+}
+
+function scheduleSessionSave() {
+  clearTimeout(sessionSaveTimer);
+  sessionSaveTimer = setTimeout(() => {
+    void persistOpenTabs().catch(error => console.error("Could not save open tabs:", error));
+  }, 500);
+  sessionSaveTimer.unref?.();
+}
+
 async function recordTabVisit(tab) {
   if (!browserData || !tab || tab.view.webContents.isDestroyed()) return;
   const url = tab.view.webContents.getURL();
@@ -37,6 +57,7 @@ async function recordTabVisit(tab) {
   try {
     await browserData.recordVisit({ url, title: tab.view.webContents.getTitle() || url });
     rebuildApplicationMenu();
+    scheduleSessionSave();
   } catch (error) {
     console.error("Could not persist browser history:", error);
   }
@@ -281,6 +302,8 @@ function closeTab(id) {
   windowRef.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
   tabs.delete(tab.id);
+  findStates.delete(tab.view.webContents.id);
+  scheduleSessionSave();
   if (activeTabId === tab.id) activeTabId = tabs.size ? [...tabs.keys()].at(-1) : null;
   if (!tabs.size) void createTab("https://www.google.com").catch(error => windowRef.webContents.send("zoe:error", error.message));
   layoutTabs(); emitState();
@@ -546,6 +569,7 @@ app.whenReady().then(async()=>{
     try { fs.renameSync(dataPath, dataPath + ".corrupt-" + Date.now()); } catch {}
     await browserData.load();
   }
+  const previousTabs = browserData.getSessionTabs();
   rebuildApplicationMenu();
   const browserSession = session.fromPartition("persist:zoe-browser");
   const permissionDecisions = new Map();
@@ -690,7 +714,30 @@ app.whenReady().then(async()=>{
     });
     return;
   }
-  await createTab("https://www.google.com",true);
+  if (previousTabs.length) {
+    for (const entry of previousTabs.slice(0, MAX_TABS)) {
+      try { await createTab(entry.url, false); }
+      catch (error) { console.error("Could not restore tab:", error.message || error); }
+    }
+    if (!tabs.size) await createTab("https://www.google.com", true);
+    else {
+      activeTabId = [...tabs.keys()].at(-1);
+      layoutTabs();
+      emitState();
+    }
+  } else {
+    await createTab("https://www.google.com", true);
+  }
   app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0){createWindow();void createTab().catch(error=>console.error(error));}});
+});
+app.on("before-quit", event => {
+  if (allowQuitAfterSave || process.env.ZOE_SMOKE_TEST === "1") return;
+  event.preventDefault();
+  if (quitSaveStarted) return;
+  quitSaveStarted = true;
+  void persistOpenTabs().catch(error => console.error("Could not save session before exit:", error)).finally(() => {
+    allowQuitAfterSave = true;
+    app.quit();
+  });
 });
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});
