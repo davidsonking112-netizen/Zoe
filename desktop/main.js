@@ -323,6 +323,7 @@ async function findPageText(webContents, query, forward = true, findNext = false
   const encodedQuery = JSON.stringify(query);
   return webContents.executeJavaScript(`(() => {
     const query = ${encodedQuery};
+    const findNext = ${findNext === true};
     const foldedQuery = query.toLocaleLowerCase();
     const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
