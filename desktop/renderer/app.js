@@ -8,6 +8,7 @@ function setPanel(visible){state.aiPanelVisible=visible;$("assistant").classList
 function appendMessage(text,role="assistant"){const node=document.createElement("div");node.className="bubble "+(role==="user"?"user-bubble":role==="tool"?"tool-bubble":"assistant-bubble");node.textContent=text;$("chat").append(node);$("chat").scrollTop=$("chat").scrollHeight;return node;}
 window.zoe.onState(next=>{state=next;renderTabs();setPanel(state.aiPanelVisible);});
 window.zoe.onError(message=>toast(message,true));
+window.zoe.onFocusAddress(()=>{$("address").focus();$("address").select();});
 window.zoe.onNotice(message=>toast(message,false));
 window.zoe.onDownloadProgress(progress=>{const status=$("download-status");if(!status)return;if(progress.state!=="progressing"){status.textContent="";return;}const total=Number(progress.totalBytes)||0;const received=Number(progress.receivedBytes)||0;status.textContent=total>0?"Downloading "+Math.floor(received/total*100)+"%":"Downloading…";});
 window.zoe.getState().then(next=>{state=next;renderTabs();setPanel(state.aiPanelVisible);}).catch(e=>toast(e.message));
@@ -15,9 +16,30 @@ $("address-form").addEventListener("submit",async e=>{e.preventDefault();try{awa
 $("back").addEventListener("click",()=>window.zoe.back().catch(e=>toast(e.message)));
 $("forward").addEventListener("click",()=>window.zoe.forward().catch(e=>toast(e.message)));
 $("reload").addEventListener("click",()=>window.zoe.reload().catch(e=>toast(e.message)));
-$("new-tab").addEventListener("click",()=>window.zoe.newTab("https://example.com").catch(e=>toast(e.message)));
+$("new-tab").addEventListener("click",()=>window.zoe.newTab("https://www.google.com").catch(e=>toast(e.message)));
 $("toggle-ai").addEventListener("click",()=>window.zoe.toggleAI().catch(e=>toast(e.message)));
 $("hide-ai").addEventListener("click",()=>window.zoe.toggleAI().catch(e=>toast(e.message)));
 $("save-ai").addEventListener("click",async()=>{try{const result=await window.zoe.configureAI({endpoint:$("endpoint").value.trim(),model:$("model").value.trim(),apiKey:$("api-key").value});$("api-key").value="";$("settings-status").textContent="Applied. Key remains in memory only.";appendMessage("AI configured for "+result.model+".","tool");}catch(e){$("settings-status").textContent=e.message;}});
 $("chat-form").addEventListener("submit",async e=>{e.preventDefault();const text=$("prompt").value.trim();if(!text)return;$("prompt").value="";appendMessage(text,"user");const pending=appendMessage("Thinking…");$("send").disabled=true;try{const result=await window.zoe.askAI(text);pending.remove();appendMessage(result.text||"Done.");if(result.page)appendMessage("Current page: "+result.page.title+"\n"+result.page.url,"tool");}catch(err){pending.remove();appendMessage("I couldn't complete that request: "+err.message); }finally{$("send").disabled=false;}});
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chat-form").requestSubmit();}});
+
+
+document.addEventListener("keydown",event=>{
+  const modifier=event.ctrlKey||event.metaKey;
+  if(!modifier)return;
+  const key=event.key.toLowerCase();
+  if(key==="l"){
+    event.preventDefault();
+    $("address").focus();
+    $("address").select();
+  }else if(key==="t"){
+    event.preventDefault();
+    window.zoe.newTab("https://www.google.com").catch(e=>toast(e.message));
+  }else if(key==="w"){
+    event.preventDefault();
+    if(state.activeTabId)window.zoe.closeTab(state.activeTabId).catch(e=>toast(e.message));
+  }else if(key==="r"){
+    event.preventDefault();
+    window.zoe.reload().catch(e=>toast(e.message));
+  }
+});
