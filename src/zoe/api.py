@@ -5,11 +5,18 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from zoe import __version__
 from zoe.browser import BrowserNotStartedError, ZoeBrowser
-from zoe.schemas import FillRequest, HealthResult, NavigateRequest, NavigationResult, SelectorRequest
+from zoe.schemas import (
+    FillRequest,
+    HealthResult,
+    NavigateRequest,
+    NavigationResult,
+    SelectorRequest,
+)
 from zoe.security import UnsafeDestinationError
 
 
