@@ -34,7 +34,7 @@ function resolveAddressInput(raw) {
 }
 
 function isPrivateHost(hostname) {
-  const host = String(hostname).toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
+  const host = String(hostname).toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
       host.endsWith(".internal") || host === "metadata.google.internal") return true;
 
