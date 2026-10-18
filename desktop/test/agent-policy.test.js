@@ -26,5 +26,5 @@ test("filling password or payment fields requires approval", () => {
 
 test("invalid or unknown action shapes fail closed for approval", () => {
   assert.equal(requiresHumanApproval(null, {}), true);
-  assert.equal(requiresHumanApproval({ type: "unknown" }, {}), false);
+  assert.equal(requiresHumanApproval({ type: "unknown" }, {}), true);
 });
