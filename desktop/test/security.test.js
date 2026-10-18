@@ -148,3 +148,15 @@ test("download path allocation avoids existing and concurrently reserved filenam
   assert.equal(first.destination, "/tmp/zoe-downloads/report (1).pdf");
   assert.equal(second.destination, "/tmp/zoe-downloads/report (2).pdf");
 });
+
+
+test("redacts credential-like URL parameters before AI page context is shared", () => {
+  const redacted = redactSensitiveUrl("https://example.com/account?access_token=secret-value&tab=home#id_token=fragment-secret");
+  const parsed = new URL(redacted);
+  assert.equal(parsed.searchParams.get("access_token"), "[redacted]");
+  assert.equal(parsed.searchParams.get("tab"), "home");
+  assert.equal(parsed.hash, "#[redacted]");
+  assert.equal(redacted.includes("secret-value"), false);
+  assert.equal(redacted.includes("fragment-secret"), false);
+  assert.equal(redactSensitiveUrl("https://example.com/#/settings"), "https://example.com/#/settings");
+});
