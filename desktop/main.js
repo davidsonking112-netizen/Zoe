@@ -455,13 +455,13 @@ function registerIpc() {
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { wc.reload(); return {success:true}; }));
-  ipcMain.handle("zoe:find", (_event, query, forward = true) => withActiveTab(wc => {
+  ipcMain.handle("zoe:find", (_event, query, forward = true, findNext = false) => withActiveTab(wc => {
     if (typeof query !== "string" || query.length > 500) throw new Error("Find text must be 500 characters or fewer.");
     if (!query.trim()) {
       wc.stopFindInPage("clearSelection");
       return { success: true, cleared: true };
     }
-    return wc.findInPage(query, { forward: forward !== false, findNext: true });
+    return wc.findInPage(query, { forward: forward !== false, findNext: findNext === true });
   }));
   ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => {
     wc.stopFindInPage("clearSelection");
