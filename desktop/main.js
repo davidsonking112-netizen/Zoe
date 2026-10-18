@@ -52,6 +52,31 @@ async function openStoredUrl(url) {
   }
 }
 
+async function clearBrowsingData() {
+  if (!windowRef || windowRef.isDestroyed() || !browserData) return;
+  const decision = await dialog.showMessageBox(windowRef, {
+    type: "warning",
+    title: "Clear browsing data",
+    message: "Clear Zoe's browsing history, cookies, site storage, and cache?",
+    detail: "This can sign you out of websites and reset site preferences. Your bookmarks will be kept.",
+    buttons: ["Cancel", "Clear browsing data"],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true
+  });
+  if (decision.response !== 1) return;
+  try {
+    await browserData.clearHistory();
+    const browserSession = session.fromPartition("persist:zoe-browser");
+    await browserSession.clearStorageData({ storages: ["cookies", "localstorage", "indexdb", "serviceworkers", "cachestorage"] });
+    await browserSession.clearCache();
+    rebuildApplicationMenu();
+    reportNotice("Browsing history, cookies, site storage, and cache cleared. Bookmarks were kept.");
+  } catch (error) {
+    reportNotice("Could not clear all browsing data: " + (error.message || "unknown error"), true);
+  }
+}
+
 async function bookmarkCurrentPage() {
   const tab = activeTab();
   if (!tab || !browserData) return;
@@ -108,7 +133,9 @@ function rebuildApplicationMenu() {
     ] },
     { label: "History", submenu: [
       { label: "Reopen current page", click: () => { const tab = activeTab(); if (tab) void openStoredUrl(tab.view.webContents.getURL()); } },
-      { type: "separator" }, ...historyItems
+      { type: "separator" }, ...historyItems,
+      { type: "separator" },
+      { label: "Clear Browsing Data…", click: () => void clearBrowsingData() }
     ] },
     { label: "Bookmarks", submenu: [
       { label: "Bookmark This Page", accelerator: "CmdOrCtrl+D", click: () => void bookmarkCurrentPage() },
