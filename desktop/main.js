@@ -578,8 +578,8 @@ function registerIpc() {
   ipcMain.handle("zoe:close-tab", (_e,id) => closeTab(id));
   ipcMain.handle("zoe:select-tab", (_e,id) => { if(!tabs.has(String(id))) throw new Error("Tab not found."); activeTabId=String(id); layoutTabs(); emitState(); return tabSummary(activeTab()); });
   ipcMain.handle("zoe:navigate", (_e,url) => withActiveTab(async wc => { clearAIGuard(activeTab()); const safe=assertBrowserUrl(resolveAddressInput(url)); await wc.loadURL(safe); return tabSummary(activeTab()); }));
-  ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
-  ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
+  ipcMain.handle("zoe:back", () => withActiveTab(async wc => { clearAIGuard(activeTab()); if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
+  ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { clearAIGuard(activeTab()); if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { clearAIGuard(activeTab()); wc.reload(); return {success:true}; }));
   ipcMain.handle("zoe:find", (_event, query, forward = true, findNext = false) => withActiveTab(wc => findPageText(wc, query, forward, findNext)));
   ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => findPageText(wc, "", true, false)));
