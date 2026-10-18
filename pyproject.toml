@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "An AI-first browser runtime and control API built on Playwright and Firefox."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
 dependencies = [
   "fastapi>=0.115,<1.0",
   "playwright>=1.50,<2.0",
