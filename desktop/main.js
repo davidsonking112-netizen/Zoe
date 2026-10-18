@@ -5,7 +5,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
 
-const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, isPrivateHost, actionRequiresApproval, assertPublicHttpUrl } = require("./security");
+const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval, assertPublicHttpUrl } = require("./security");
 const { BrowserDataStore } = require("./browser-data");
 
 const TOOLBAR_HEIGHT = 104;
