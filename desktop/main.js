@@ -31,7 +31,7 @@ const publicDestinationCache = new Map();
 
 function activeTab() { return tabs.get(activeTabId) || null; }
 function activateAIGuard(tab) {
-  if (!tab || tab.view.webContents.isDestroyed()) return;
+  if (!tab || !tab.view || !tab.view.webContents || tab.view.webContents.isDestroyed()) return;
   tab.aiRestricted = true;
   aiGuardedWebContents.add(tab.view.webContents.id);
 }
