@@ -83,11 +83,12 @@ function actionRequiresApproval({type, name="", elementType="", inputType="", pl
   const description = `${name} ${placeholder} ${autocomplete}`.trim();
   if (type === "click") {
     const consequentialDestination = /(?:checkout|payment|purchase|delete|remove|unsubscribe|transfer|confirm|submit|order|withdraw)/i.test(String(href));
-    const consequentialButton = /^(?:button)$/i.test(String(role)) && /\\b(save changes|update account|place order|complete purchase)\\b/i.test(String(name));
+    const consequentialButton = /^(?:button)$/i.test(String(role)) && /\b(save changes|update account|place order|complete purchase)\b/i.test(String(name));
     return elementType.toLowerCase() === "submit" || formSubmit === true || CONSEQUENTIAL_CLICK.test(description) || consequentialDestination || consequentialButton;
   }
   if (type === "fill") {
-    return inputType.toLowerCase() === "password" || SENSITIVE_FIELD.test(description) ||
+    const sensitiveType = ["password", "file", "date", "datetime-local", "month", "week", "time"].includes(inputType.toLowerCase());
+    return sensitiveType || SENSITIVE_FIELD.test(description) ||
       /(?:cc-|current-password|new-password|one-time-code|transaction-amount|transaction-currency)/i.test(String(autocomplete));
   }
   return true;
