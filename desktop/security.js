@@ -75,6 +75,22 @@ function isPrivateHost(hostname) {
   }
   return false;
 }
+function redactSensitiveUrl(raw) {
+  try {
+    const url = new URL(raw);
+    const sensitiveKey = /(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|auth|session|credential|api[_-]?key|signature|jwt|one[-_]?time[-_]?code|verification[-_]?code|^code$|^otp$|email|phone|ssn|card(?:number)?|cvv)/i;
+    for (const key of [...url.searchParams.keys()]) {
+      if (sensitiveKey.test(key)) url.searchParams.set(key, "[redacted]");
+    }
+    if (/(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth|session|secret|password|jwt|code)=/i.test(url.hash)) {
+      url.hash = "#[redacted]";
+    }
+    return url.href;
+  } catch {
+    return String(raw || "");
+  }
+}
+
 async function assertPublicHttpUrl(raw, lookupAll = lookup) {
   const url = normalizeUrl(raw);
   if (!isAllowedNavigation(url)) throw new Error("Only HTTP(S) destinations are allowed.");
@@ -150,4 +166,4 @@ function actionRequiresApproval({type, name="", elementType="", inputType="", pl
   return true;
 }
 
-module.exports={normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl};
+module.exports={normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl,redactSensitiveUrl};
