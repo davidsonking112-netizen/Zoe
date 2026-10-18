@@ -14,6 +14,14 @@ class BrowserNotStartedError(RuntimeError):
     """Raised when a browser operation requires an unavailable page."""
 
 
+class LocatorNotFoundError(LookupError):
+    """Raised when a semantic locator matches no elements."""
+
+
+class AmbiguousLocatorError(ValueError):
+    """Raised when a semantic locator matches more than one element."""
+
+
 class ZoeBrowser:
     """A lazily-started Firefox runtime with a single page.
 
@@ -124,6 +132,59 @@ class ZoeBrowser:
         page = self._require_page()
         await page.locator(selector).first.fill(text)
         return {"success": True, "selector": selector}
+
+    async def semantic_action(
+        self,
+        *,
+        action: str,
+        strategy: str,
+        value: str,
+        role: str | None = None,
+        text: str | None = None,
+        exact: bool = True,
+    ) -> dict[str, Any]:
+        """Perform an action only when a semantic locator matches exactly one element."""
+        page = self._require_page()
+        if strategy == "role":
+            if not role:
+                raise ValueError("The role strategy requires a role.")
+            locator = page.get_by_role(role, name=value, exact=exact)
+        elif strategy == "label":
+            locator = page.get_by_label(value, exact=exact)
+        elif strategy == "text":
+            locator = page.get_by_text(value, exact=exact)
+        elif strategy == "placeholder":
+            locator = page.get_by_placeholder(value, exact=exact)
+        elif strategy == "test_id":
+            locator = page.get_by_test_id(value)
+        else:
+            raise ValueError("Unsupported locator strategy.")
+
+        count = await locator.count()
+        if count == 0:
+            raise LocatorNotFoundError("The semantic locator did not match any elements.")
+        if count > 1:
+            raise AmbiguousLocatorError(
+                f"The semantic locator matched {count} elements; refine it to match exactly one."
+            )
+
+        if action == "click":
+            await locator.click()
+        elif action == "fill":
+            if text is None:
+                raise ValueError("The fill action requires text.")
+            await locator.fill(text)
+        else:
+            raise ValueError("Unsupported semantic action.")
+
+        return {
+            "success": True,
+            "action": action,
+            "strategy": strategy,
+            "matched_count": count,
+            "url": page.url,
+            "title": await page.title(),
+        }
 
     async def screenshot(self) -> dict[str, str]:
         page = self._require_page()
