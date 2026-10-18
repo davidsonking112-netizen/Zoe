@@ -20,5 +20,6 @@ contextBridge.exposeInMainWorld("zoe", Object.freeze({
   onState: callback => { const listener=(_event,state)=>callback(state); ipcRenderer.on("zoe:state",listener); return ()=>ipcRenderer.removeListener("zoe:state",listener); },
   onError: callback => { const listener=(_event,message)=>callback(message); ipcRenderer.on("zoe:error",listener); return ()=>ipcRenderer.removeListener("zoe:error",listener); },
   onNotice: callback => { const listener=(_event,message)=>callback(message); ipcRenderer.on("zoe:notice",listener); return ()=>ipcRenderer.removeListener("zoe:notice",listener); },
-  onDownloadProgress: callback => { const listener=(_event,progress)=>callback(progress); ipcRenderer.on("zoe:download-progress",listener); return ()=>ipcRenderer.removeListener("zoe:download-progress",listener); }
+  onDownloadProgress: callback => { const listener=(_event,progress)=>callback(progress); ipcRenderer.on("zoe:download-progress",listener); return ()=>ipcRenderer.removeListener("zoe:download-progress",listener); },
+  onFocusAddress: callback => { const listener=()=>callback(); ipcRenderer.on("zoe:focus-address",listener); return ()=>ipcRenderer.removeListener("zoe:focus-address",listener); }
 }));
