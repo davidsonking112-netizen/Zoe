@@ -512,6 +512,7 @@ async function performAction(action, {fromAI = false} = {}) {
 async function askModel(messages, tools) {
   if (!aiConfig.model) throw new Error("Set an AI model name in the AI panel settings.");
   const endpoint = aiConfig.endpoint;
+  if (process.env.ZOE_SMOKE_TEST === "1") console.log("smoke: askModel endpoint " + endpoint);
   if (!isAllowedModelEndpoint(endpoint)) throw new Error("Model endpoint must be HTTPS or a local loopback address.");
   const response = await fetch(endpoint, {
     method:"POST",
@@ -519,6 +520,7 @@ async function askModel(messages, tools) {
     body:JSON.stringify({model:aiConfig.model,messages,tools,tool_choice:"auto",temperature:0.2}),
     signal:AbortSignal.timeout(60000)
   });
+  if (process.env.ZOE_SMOKE_TEST === "1") console.log("smoke: mock model HTTP status " + response.status);
   if (!response.ok) throw new Error(`AI provider returned HTTP ${response.status}.`);
   const data = await response.json();
   const message = data.choices?.[0]?.message;
@@ -532,6 +534,7 @@ const AI_TOOLS = [
   {type:"function",function:{name:"fill_element",description:"Fill a visible input or text field by its current inspection index. Zoe asks for approval before filling fields identified as passwords or sensitive credentials.",parameters:{type:"object",properties:{index:{type:"integer"},expectedName:{type:"string"},text:{type:"string"}},required:["index","expectedName","text"],additionalProperties:false}}}
 ];
 async function runAI(userText) {
+  if (process.env.ZOE_SMOKE_TEST === "1") console.log("smoke: runAI entered");
   if (typeof userText !== "string" || !userText.trim() || userText.length > 12000) throw new Error("Enter a message up to 12,000 characters.");
   const pageContext = await pageSnapshot().catch(() => null);
   const messages = [
@@ -807,6 +810,7 @@ app.whenReady().then(async()=>{
           apiKey: ""
         };
         console.log("smoke: mock model server listening on " + modelAddress.port);
+        console.log("smoke: starting runAI with endpoint " + aiConfig.endpoint);
         const originalShowMessageBox = dialog.showMessageBox;
         dialog.showMessageBox = async () => ({ response: 0 });
         let aiResult;
