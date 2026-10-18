@@ -10,7 +10,8 @@ Zoe 1.0 means a **normal desktop browser with an integrated AI assistant**, not 
 - [ ] Electron smoke test covers navigation, inspection, a safe fill/click, find-in-page, OpenAI-compatible tool calls, form-value privacy, and denial of a consequential action.
 - [ ] Python lint, unit/API tests, Firefox integration tests, and coverage report pass.
 - [ ] Desktop packages build on clean Linux, Windows, and macOS runners.
-- [ ] A dependency lockfile is committed and dependency advisories have been reviewed.
+- [x] The desktop dependency lockfile is committed; CI and release workflows use `npm ci`.
+- [ ] Review dependency advisories and document accepted risks.
 
 ### 2. Manual installed-app verification
 On each supported operating system, use a clean user account or virtual machine:
