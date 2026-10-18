@@ -20,6 +20,7 @@
 - [x] Navigate, inspect, click, fill, and screenshot endpoints
 - [x] Initial URL and request destination validation
 - [x] Unit tests and CI workflow
+- [x] Firefox runtime smoke test in CI
 - [ ] Browser integration tests against a local fixture server
 - [ ] Session isolation and multi-task lifecycle
 - [ ] Agent adapter (model-provider agnostic)
