@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu, clipboard } = require("electron");
+const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu, clipboard, shell } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -23,6 +23,7 @@ let aiConfig = { endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: 
 let aiHistory = [];
 const tabs = new Map();
 const reservedDownloadPaths = new Set();
+const downloadHistory = [];
 
 
 function activeTab() { return tabs.get(activeTabId) || null; }
@@ -161,6 +162,20 @@ function rebuildApplicationMenu() {
     { label: "Bookmarks", submenu: [
       { label: "Bookmark This Page", accelerator: "CmdOrCtrl+D", click: () => void bookmarkCurrentPage() },
       { type: "separator" }, ...bookmarkItems
+    ] },
+    { label: "Downloads", submenu: [
+      { label: "Open Downloads Folder", click: () => { void shell.openPath(app.getPath("downloads")).then(error => { if (error) reportNotice(error, true); }); } },
+      { type: "separator" },
+      ...(downloadHistory.length ? downloadHistory.map(entry => ({
+        label: (entry.state === "completed" ? "✓ " : entry.state === "downloading" ? "↓ " : "⚠ ") + entry.filename.slice(0, 64),
+        enabled: entry.state === "completed",
+        submenu: [
+          { label: "Show in Folder", enabled: entry.state === "completed", click: () => shell.showItemInFolder(entry.path) },
+          { label: "Open File", enabled: entry.state === "completed", click: () => { void shell.openPath(entry.path).then(error => { if (error) reportNotice(error, true); }); } }
+        ]
+      })) : [{ label: "No downloads yet", enabled: false }]),
+      { type: "separator" },
+      { label: "Clear Download List", click: () => { downloadHistory.splice(0); rebuildApplicationMenu(); } }
     ] }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -617,6 +632,10 @@ app.whenReady().then(async()=>{
     }
     reservedDownloadPaths.add(destination);
     item.setSavePath(destination);
+    const downloadEntry = { filename: requestedName, path: destination, state: "downloading", startedAt: Date.now() };
+    downloadHistory.unshift(downloadEntry);
+    downloadHistory.splice(20);
+    rebuildApplicationMenu();
     reportNotice("Downloading " + requestedName + " to your Downloads folder.");
     item.on("updated", (_downloadEvent, state) => {
       if (state === "interrupted") reportNotice("Download interrupted: " + requestedName, true);
@@ -628,6 +647,9 @@ app.whenReady().then(async()=>{
     });
     item.once("done", (_downloadEvent, state) => {
       reservedDownloadPaths.delete(destination);
+      downloadEntry.state = state;
+      downloadEntry.finishedAt = Date.now();
+      rebuildApplicationMenu();
       if (state === "completed") reportNotice("Download completed: " + requestedName);
       else if (state !== "cancelled") reportNotice("Download " + state + ": " + requestedName, true);
     });
