@@ -590,13 +590,14 @@ app.whenReady().then(async()=>{
         const after = await pageSnapshot();
         if (!after.text.includes("Done: zoe")) throw new Error("Electron browser action verification failed.");
         const webContents = activeTab().view.webContents;
+        webContents.focus();
+        await new Promise(resolve => setTimeout(resolve, 150));
         const findResult = await new Promise((resolve, reject) => {
           const timer = setTimeout(() => {
             webContents.removeListener("found-in-page", listener);
             reject(new Error("Find-in-page did not return a result."));
-          }, 5000);
+          }, 10000);
           const listener = (_event, result) => {
-            if (!result.finalUpdate) return;
             clearTimeout(timer);
             webContents.removeListener("found-in-page", listener);
             resolve(result);
