@@ -102,7 +102,15 @@ jobs:
         working-directory: desktop
         env:
           ZOE_SMOKE_TEST: "1"
-        run: python3 -c "import subprocess; subprocess.run(['dist/mac/Zoe.app/Contents/MacOS/Zoe'], timeout=90, check=True)"
+        run: |
+          APP_BIN="$(find dist -path '*/Zoe.app/Contents/MacOS/Zoe' -type f -print -quit)"
+          if [ -z "$APP_BIN" ]; then
+            find dist -maxdepth 4 -name '*.app' -print
+            echo "Packaged Zoe executable was not found."
+            exit 1
+          fi
+          export APP_BIN
+          python3 -c 'import os, subprocess; subprocess.run([os.environ["APP_BIN"]], timeout=90, check=True)'
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
