@@ -1,5 +1,8 @@
 "use strict";
 
+const { lookup } = require("node:dns/promises");
+const { isIP } = require("node:net");
+
 const CONSEQUENTIAL_CLICK = /\b(pay(?:ment)?|purchase|buy|delete|remove|transfer|send|submit|publish|confirm|order|checkout|unsubscribe|cancel(?: account)?|sign out|log out|change password|invite|share|post|message|place bid|subscribe|withdraw|refund)\b/i;
 const SENSITIVE_FIELD = /\b(password|passcode|one[- ]time code|verification code|otp|security code|cvv|cvc|card number|credit card|bank account|routing number|recovery code|secret key)\b/i;
 
@@ -31,24 +34,45 @@ function resolveAddressInput(raw) {
 }
 
 function isPrivateHost(hostname) {
-  const host=hostname.toLowerCase().replace(/^\[|\]$/g,"").replace(/\.$/,"");
-  if (host==="localhost"||host.endsWith(".localhost")||host.endsWith(".local")||host.endsWith(".internal")||host==="metadata.google.internal"||host==="::1"||host==="::") return true;
-  const parts=host.split(".").map(Number);
-  if(parts.length===4&&parts.every(n=>Number.isInteger(n)&&n>=0&&n<=255)){const [a,b]=parts;return a===0||a===10||a===127||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||a>=224;}
-  // Block IPv6 unique-local, link-local, multicast, documentation, and IPv4-mapped addresses.
-  if (/^(?:fc|fd)[0-9a-f]{2}:/.test(host) || /^fe[89ab][0-9a-f]:/.test(host) || /^ff[0-9a-f]{2}:/.test(host) || host.startsWith("2001:db8:")) return true;
-  if (host.startsWith("::ffff:")) {
-    const mapped = host.slice(7);
-    if (mapped.includes(".")) return isPrivateHost(mapped);
-    const groups = mapped.split(":").filter(Boolean);
-    if (groups.length >= 2) {
-      const first = Number.parseInt(groups.at(-2),16), second = Number.parseInt(groups.at(-1),16);
-      if (Number.isFinite(first)&&Number.isFinite(second)) return isPrivateHost([first>>8,first&255,second>>8,second&255].join("."));
+  const host = String(hostname).toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
+      host.endsWith(".internal") || host === "metadata.google.internal") return true;
+
+  if (isIP(host) === 4) {
+    const octets = host.split(".").map(Number);
+    const [a, b, d] = octets;
+    return a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && (b === 168 || (b === 0 && (d === 0 || d === 2)) || (b === 88 && d === 99))) ||
+      (a === 198 && (b === 18 || b === 19 || (b === 51 && d === 100))) ||
+      (a === 203 && b === 0 && d === 113) ||
+      (a === 255 && b === 255);
+  }
+
+  if (isIP(host) === 6) {
+    if (host === "::" || host === "::1") return true;
+    if (host.startsWith("::ffff:")) {
+      const mapped = host.slice(7);
+      if (isIP(mapped) === 4) return isPrivateHost(mapped);
+      const groups = mapped.split(":").filter(Boolean);
+      if (groups.length >= 2) {
+        const first = Number.parseInt(groups.at(-2), 16);
+        const second = Number.parseInt(groups.at(-1), 16);
+        if (Number.isFinite(first) && Number.isFinite(second)) {
+          return isPrivateHost([first >> 8, first & 255, second >> 8, second & 255].join("."));
+        }
+      }
+      return true;
     }
+    const firstGroup = Number.parseInt(host.split(":")[0] || "0", 16);
+    return host.startsWith("fc") || host.startsWith("fd") ||
+      /^fe[89ab][0-9a-f]:/.test(host) || host.startsWith("ff") ||
+      host.startsWith("2001:db8:") || firstGroup < 0x2000 || firstGroup > 0x3fff;
   }
   return false;
 }
-
 function isAllowedNavigation(raw) {
   try { const url=new URL(raw); return ["http:","https:"].includes(url.protocol)&&!url.username&&!url.password; } catch { return false; }
 }
