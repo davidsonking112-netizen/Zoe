@@ -20,6 +20,7 @@ let aiPanelVisible = true;
 let aiConfig = { endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: "qwen3.5:9b", apiKey: "" };
 let aiHistory = [];
 const tabs = new Map();
+const reservedDownloadPaths = new Set();
 
 
 function activeTab() { return tabs.get(activeTabId) || null; }
@@ -505,13 +506,15 @@ app.whenReady().then(async()=>{
   browserSession.on("will-download", (_event, item) => {
     const downloadsDirectory = app.getPath("downloads");
     fs.mkdirSync(downloadsDirectory, { recursive: true });
-    const requestedName = path.basename(item.getFilename()).replace(/[<>:"\/\\|?*\x00-\x1f]/g, "_") || "download";
+    let requestedName = path.basename(item.getFilename()).replace(/[<>:"\/\\|?*\x00-\x1f]/g, "_") || "download";
+    if (requestedName === "." || requestedName === "..") requestedName = "download";
     const parsedName = path.parse(requestedName);
     let destination = path.join(downloadsDirectory, requestedName);
     let suffix = 1;
-    while (fs.existsSync(destination)) {
+    while (fs.existsSync(destination) || reservedDownloadPaths.has(destination)) {
       destination = path.join(downloadsDirectory, parsedName.name + " (" + suffix++ + ")" + parsedName.ext);
     }
+    reservedDownloadPaths.add(destination);
     item.setSavePath(destination);
     reportNotice("Downloading " + requestedName + " to your Downloads folder.");
     item.on("updated", (_downloadEvent, state) => {
@@ -523,6 +526,7 @@ app.whenReady().then(async()=>{
       }
     });
     item.once("done", (_downloadEvent, state) => {
+      reservedDownloadPaths.delete(destination);
       if (state === "completed") reportNotice("Download completed: " + requestedName);
       else if (state !== "cancelled") reportNotice("Download " + state + ": " + requestedName, true);
     });
