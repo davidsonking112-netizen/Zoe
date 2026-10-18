@@ -67,3 +67,13 @@ def test_session_listing_has_no_session_secrets() -> None:
         assert "cookies" not in serialized.lower()
         assert "storage_state" not in serialized.lower()
         client.delete(f"/v1/sessions/{session_id}")
+
+
+
+def test_task_endpoint_rejects_unsupported_actions() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/tasks/run",
+            json={"steps": [{"action": "execute_shell"}]},
+        )
+        assert response.status_code == 422
