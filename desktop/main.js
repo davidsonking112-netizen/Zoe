@@ -839,7 +839,7 @@ app.whenReady().then(async()=>{
         modelServer.closeAllConnections?.();
         modelServer.close();
         server.close();
-        app.exit(0);
+        process.exit(0);
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
         if (modelServer && modelServer.listening) {
@@ -847,7 +847,7 @@ app.whenReady().then(async()=>{
           modelServer.close();
         }
         server.close();
-        app.exit(1);
+        process.exit(1);
       }
     });
     return;
