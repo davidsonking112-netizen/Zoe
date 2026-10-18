@@ -84,7 +84,7 @@ jobs:
         working-directory: desktop
         env:
           ZOE_SMOKE_TEST: "1"
-        run: timeout 90s xvfb-run -a ./dist/linux-unpacked/zoe --no-sandbox
+        run: timeout 90s xvfb-run -a ./dist/linux-unpacked/zoe-browser --no-sandbox
       - name: Smoke-test packaged Windows app
         if: runner.os == 'Windows'
         working-directory: desktop
