@@ -73,6 +73,24 @@ function isPrivateHost(hostname) {
   }
   return false;
 }
+async function assertPublicHttpUrl(raw, lookupAll = lookup) {
+  const url = normalizeUrl(raw);
+  if (!isAllowedNavigation(url)) throw new Error("Only HTTP(S) destinations are allowed.");
+  const hostname = new URL(url).hostname.replace(/^\[|\]$/g, "");
+  if (isPrivateHost(hostname)) throw new Error("AI navigation is limited to public HTTP(S) destinations.");
+  if (isIP(hostname)) return url;
+  let addresses;
+  try {
+    addresses = await lookupAll(hostname, { all: true, verbatim: true });
+  } catch {
+    throw new Error("AI navigation was blocked because Zoe could not verify that the destination is public.");
+  }
+  if (!addresses.length || addresses.some(({ address }) => isPrivateHost(address))) {
+    throw new Error("AI navigation was blocked because the destination resolves to a private or reserved network.");
+  }
+  return url;
+}
+
 function isAllowedNavigation(raw) {
   try { const url=new URL(raw); return ["http:","https:"].includes(url.protocol)&&!url.username&&!url.password; } catch { return false; }
 }
@@ -94,4 +112,4 @@ function actionRequiresApproval({type, name="", elementType="", inputType="", pl
   return true;
 }
 
-module.exports={normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval};
+module.exports={normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl};
