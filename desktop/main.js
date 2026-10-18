@@ -765,6 +765,7 @@ app.whenReady().then(async()=>{
             try {
               const payload = JSON.parse(body);
               modelCalls += 1;
+              console.log("smoke: mock model received request " + modelCalls);
               if (modelCalls === 1 && JSON.stringify(payload.messages).includes("fixture-secret")) {
                 throw new Error("A password value leaked into the model request.");
               }
@@ -797,12 +798,18 @@ app.whenReady().then(async()=>{
           model: "zoe-smoke-model",
           apiKey: ""
         };
+        console.log("smoke: mock model server listening on " + modelAddress.port);
         const originalShowMessageBox = dialog.showMessageBox;
         dialog.showMessageBox = async () => ({ response: 0 });
         let aiResult;
+        let modelTimeout;
         try {
-          aiResult = await runAI("Inspect the page and attempt the Delete account button only if approved.");
+          aiResult = await Promise.race([
+            runAI("Inspect the page and attempt the Delete account button only if approved."),
+            new Promise((_, reject) => { modelTimeout = setTimeout(() => reject(new Error("AI model loop timed out after " + modelCalls + " mock requests.")), 20000); })
+          ]);
         } finally {
+          clearTimeout(modelTimeout);
           dialog.showMessageBox = originalShowMessageBox;
         }
         const afterAIPage = await pageSnapshot();
@@ -817,7 +824,10 @@ app.whenReady().then(async()=>{
         server.close(() => app.exit(0));
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
-        if (modelServer && modelServer.listening) modelServer.close();
+        if (modelServer && modelServer.listening) {
+          modelServer.closeAllConnections?.();
+          modelServer.close();
+        }
         server.close(() => app.exit(1));
       }
     });
