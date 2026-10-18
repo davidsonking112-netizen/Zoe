@@ -6,11 +6,49 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js",
+    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check browser-data.js",
     "test": "node --test",
-    "smoke": "electron --no-sandbox ."
+    "smoke": "electron --no-sandbox .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg",
+    "dist:linux": "electron-builder --linux AppImage deb"
   },
   "devDependencies": {
-    "electron": "^38.0.0"
+    "electron": "38.0.0",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "com.luminouslabs.zoe",
+    "productName": "Zoe",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "security.js",
+      "browser-data.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "category": "Network;WebBrowser;",
+      "target": ["AppImage", "deb"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }
