@@ -162,6 +162,8 @@ def _safe_error(exc: Exception) -> str:
     """Return concise error categories without dumping page contents or internals."""
     if isinstance(exc, AssertionError):
         return str(exc)
+    if isinstance(exc, RuntimeError) and "non-success HTTP status" in str(exc):
+        return "Navigation returned a non-success HTTP status."
     if isinstance(exc, TimeoutError):
         return "Browser operation timed out."
     if type(exc).__name__ == "UnsafeDestinationError":
