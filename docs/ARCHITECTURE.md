@@ -12,7 +12,8 @@ Zoe is an agent-first browser environment, not a fork of Firefox. The initial im
 - `zoe.sessions`: manages bounded, isolated browser sessions and idle expiry.
 - `zoe.api`: exposes a local FastAPI interface and serves the observer dashboard at `/`.
 - `zoe.dashboard`: provides a self-contained local UI for sessions, navigation, inspection, screenshots, actions, tasks, and activity events.
-- `zoe.tasks`: executes bounded, explicit sequential task steps and records per-step outcomes.\n- `zoe.client`: async Python SDK for session-scoped browser operations and task execution; it is model-provider neutral.
+- `zoe.tasks`: executes bounded, explicit sequential task steps and records per-step outcomes.
+- `zoe.client`: async Python SDK for session-scoped browser operations and task execution; it is model-provider neutral.
 - `tests/`: tests API behavior and URL policy, plus an end-to-end Firefox workflow against a deterministic local fixture server. The integration test temporarily permits only its own loopback fixture URL through a monkeypatch; production policy remains unchanged.
 
 Keep browser mechanics separate from model-provider logic. The browser API must remain usable by different agents and models.
