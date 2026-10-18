@@ -107,7 +107,7 @@ curl -X POST http://127.0.0.1:8765/v1/browser/fill \
 | POST | `/v1/browser/fill` | Fill a field selected by CSS |
 | GET | `/v1/browser/screenshot` | Return a base64 PNG screenshot |
 
-The first implementation intentionally uses **one local browser page shared by requests**. Do not expose it to untrusted users or use it for concurrent independent agents. Session isolation, authentication, and task-level authorization must be implemented before that changes.
+Legacy requests without `X-Zoe-Session-ID` still use the default local browser page. For independent tasks, create a session with `POST /v1/sessions` and send its `session_id` in the `X-Zoe-Session-ID` header on browser requests. Sessions use separate Playwright/Firefox processes and contexts; this improves isolation but consumes more memory. The default cap is four active sessions, and sessions expire after 15 minutes of inactivity when the manager next processes a request. This API still has no authentication: bind it to localhost and do not expose it to untrusted users.
 
 ## Security notes and limitations
 
