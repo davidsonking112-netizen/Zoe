@@ -50,15 +50,30 @@ The browser launches lazily. A health check must not start Firefox.
 - Cross-platform packaging is configured, but unsigned installers and successful CI packaging do not replace installation tests, code signing, notarization, or a security review.
 - Website text is untrusted input. It must never override system policy or grant itself permissions.
 
-## Proposed next phases
+## Zoe 1.0 release gates
 
-1. **Browser integration tests:** run against a local fixture website without depending on public internet.
-2. **Action semantics:** accessible-name locators, explicit action outcomes, bounded waits, and structured error categories.
-3. **Task engine:** task lifecycle, timeouts, cancellation, step history, and result verification.
-4. **Desktop browser completeness:** bookmarks, history, downloads, privacy controls, crash recovery, and installer/signing.
-5. **AI approval and evaluation:** explicit approval for consequential actions, prompt-injection tests, model compatibility, task success metrics.
-6. **Security:** stronger network egress enforcement, permission controls, dependency review, and adversarial tests.
-7. **Benchmarks:** task success, factual extraction accuracy, recovery rate, latency, and RAM per concurrent task.
+Zoe's user-facing product is the normal desktop browser. Do not build or ship a separate AI-only dashboard. AI is an optional capability inside the browser; the Python API is a separate developer interface.
+
+The following gates must pass before calling the product 1.0:
+
+1. **Core browser E2E:** search/address input, tabs, back/forward/reload, find-in-page, context menus, bookmarks/history, downloads, permission prompts, and clearing browsing data.
+2. **AI behavior:** test a real supported model on page-grounded questions, safe navigation, field filling, result verification, refusal of unsafe destinations, and native approval for consequential actions.
+3. **Security:** adversarial tests for prompt injection, redirects, private-network destinations, URL schemes, sensitive form values, download paths, permission prompts, and IPC boundaries. The approval classifier must not be treated as a security guarantee.
+4. **Installers:** build and install/uninstall on clean Windows, macOS, and Linux machines; record known OS-specific limitations. Signing and notarization must be handled before distributing production installers.
+5. **Performance:** measure startup time, memory with 1/5/10 tabs, idle memory, and AI task latency. Define supported hardware and a sensible concurrency budget.
+6. **Operations:** document updates, data clearing, logs, crash behavior, model setup, privacy implications of remote endpoints, and a rollback path.
+7. **Release validation:** all CI checks pass on the final release candidate; artifacts are tested; the changelog and known-issues list are published.
+
+CI currently includes JavaScript checks, desktop security/persistence tests, an actual Electron smoke workflow against a local fixture, a directory packaging build, Ruff, and the Python test suite. These are necessary baseline checks, not proof of production readiness or live-model quality.
+
+## Known boundaries that remain
+
+- The desktop model integration is OpenAI-compatible and has a bounded tool loop, but supported providers/models still need real-model compatibility tests.
+- The desktop browser resolves hostnames before AI-initiated navigation, but Chromium resolves them again. DNS rebinding and page-triggered subresource access are not fully eliminated without network-level egress controls.
+- Consequential-action detection uses page metadata and keyword heuristics. A native approval prompt reduces risk but can miss intent; users must still review actions.
+- The Python automation API has no authentication and must remain localhost-only.
+- Installer configuration exists, but configuration alone does not prove clean-machine install/uninstall behavior, signing, or notarization.
+- Page text is untrusted input. Never allow page content to override system policy, permission boundaries, or user approval.
 
 ## Design decisions
 
