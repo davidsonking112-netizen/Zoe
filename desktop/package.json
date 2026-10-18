@@ -8,7 +8,7 @@
     "start": "electron .",
     "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js",
     "test": "node --test",
-    "smoke": "electron ."
+    "smoke": "electron --no-sandbox ."
   },
   "devDependencies": {
     "electron": "^38.0.0"
