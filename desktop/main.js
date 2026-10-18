@@ -250,6 +250,10 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   tabs.set(id, tab);
   windowRef.contentView.addChildView(view);
   view.webContents.setWindowOpenHandler(({ url: popupUrl }) => {
+    if (tab.aiRestricted) {
+      reportNotice("Blocked a popup from an AI-controlled page. Use the address bar to navigate manually.", true);
+      return { action: "deny" };
+    }
     void createTab(popupUrl, true).catch(error => windowRef.webContents.send("zoe:error", error.message));
     return { action: "deny" };
   });
@@ -290,8 +294,12 @@ async function createTab(rawUrl = "https://example.com", select = true) {
       Menu.buildFromTemplate(menuItems).popup({ window: windowRef });
     }
   });
+  view.webContents.on("before-mouse-event", (_event, mouseEvent) => {
+    if (mouseEvent.type === "mouseDown") clearAIGuard(tab);
+  });
   view.webContents.on("before-input-event", (event, input) => {
     if (input.type !== "keyDown") return;
+    clearAIGuard(tab);
     const key = String(input.key || "").toLowerCase();
     const modifier = input.control || input.meta;
     if (modifier && key === "l") {
@@ -572,7 +580,7 @@ function registerIpc() {
   ipcMain.handle("zoe:navigate", (_e,url) => withActiveTab(async wc => { clearAIGuard(activeTab()); const safe=assertBrowserUrl(resolveAddressInput(url)); await wc.loadURL(safe); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
-  ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { wc.reload(); return {success:true}; }));
+  ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { clearAIGuard(activeTab()); wc.reload(); return {success:true}; }));
   ipcMain.handle("zoe:find", (_event, query, forward = true, findNext = false) => withActiveTab(wc => findPageText(wc, query, forward, findNext)));
   ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => findPageText(wc, "", true, false)));
   ipcMain.handle("zoe:toggle-ai", () => { aiPanelVisible=!aiPanelVisible; layoutTabs(); emitState(); return aiPanelVisible; });
