@@ -25,3 +25,21 @@ class HealthResult(BaseModel):
     status: str = "ok"
     browser_started: bool
     version: str
+
+
+class CreateSessionResult(BaseModel):
+    session_id: str
+    created_at_monotonic: float
+    last_used_at_monotonic: float
+    browser_started: bool = False
+
+
+class SessionListResult(BaseModel):
+    sessions: list[CreateSessionResult]
+    active_sessions: int
+    max_sessions: int
+
+
+class CloseSessionResult(BaseModel):
+    closed: bool
+    session_id: str
