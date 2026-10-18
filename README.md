@@ -31,11 +31,13 @@
 - [x] OpenAI-compatible chat/tool-call adapter (local Ollama endpoint by default; compatible HTTPS endpoints supported)
 - [x] Native approval dialog for detected consequential AI clicks and sensitive field fills
 - [x] Persistent, bounded bookmarks and browsing history with URL validation
+- [x] Open-tab session persistence and restoration with a 20-tab cap
 - [x] Download handling with collision-safe filenames and progress/completion notices
 - [x] Confirmed clear-browsing-data action (history, cookies, site storage, and cache; bookmarks retained)
 - [x] Native browser context menus and common keyboard shortcuts (Ctrl/Cmd+L, T, W, R, F)
 - [x] Find-in-page controls and real Electron smoke coverage
 - [x] Session-scoped prompts for supported website permissions; deny unknown permissions by default
+- [x] Deterministic OpenAI-compatible model/tool-call smoke test with a local fake model
 - [x] Windows/macOS/Linux installer configuration and tag-triggered release workflow
 - [ ] Cross-platform package and installation validation on clean Windows, macOS, and Linux machines
 - [ ] Adversarial browser/AI security review, including redirects, DNS rebinding, malicious downloads, and prompt injection
