@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval}=require("../security");
+const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl}=require("../security");
 
 test("normalizes domain searches and URLs",()=>{
   assert.equal(normalizeUrl("example.com"),"https://example.com/");
@@ -80,4 +80,28 @@ test("approval policy covers sensitive upload and scheduling fields",()=>{
   assert.equal(actionRequiresApproval({type:"fill",inputType:"file"}),true);
   assert.equal(actionRequiresApproval({type:"fill",inputType:"datetime-local"}),true);
   assert.equal(actionRequiresApproval({type:"click",name:"Save changes",role:"button"}),true);
+});
+
+
+test("AI public-destination validation rejects private DNS answers and permits public ones", async () => {
+  let lookups = 0;
+  const publicLookup = async () => {
+    lookups += 1;
+    return [{ address: "93.184.216.34", family: 4 }];
+  };
+  assert.equal(await assertPublicHttpUrl("https://example.com/path", publicLookup), "https://example.com/path");
+  assert.equal(lookups, 1);
+  await assert.rejects(assertPublicHttpUrl("http://127.0.0.1:8000", publicLookup), /public HTTP/);
+  assert.equal(lookups, 1, "literal private addresses should be blocked before DNS lookup");
+  await assert.rejects(
+    assertPublicHttpUrl("https://mixed.example", async () => [
+      { address: "93.184.216.34", family: 4 },
+      { address: "192.168.1.4", family: 4 }
+    ]),
+    /private or reserved/
+  );
+  await assert.rejects(
+    assertPublicHttpUrl("https://unresolved.example", async () => { throw new Error("DNS failed"); }),
+    /could not verify/
+  );
 });
