@@ -188,10 +188,6 @@ function assertBrowserUrl(raw) {
   if (!isAllowedNavigation(url)) throw new Error("Zoe only opens HTTP(S) websites.");
   return url;
 }
-async function assertSafeAIUrl(raw) {
-  return assertPublicHttpUrl(raw);
-}
-
 async function createTab(rawUrl = "https://example.com", select = true) {
   if (tabs.size >= MAX_TABS) throw new Error(`Zoe supports at most ${MAX_TABS} open tabs.`);
   const url = assertBrowserUrl(rawUrl);
