@@ -59,7 +59,8 @@ uvicorn zoe.api:app --host 127.0.0.1 --port 8765
 
 Keep the service bound to localhost. The initial API has **no authentication** and is intended only for local development.
 
-- Dashboard: `http://127.0.0.1:8765/`\n- Health: `http://127.0.0.1:8765/health`
+- Dashboard: `http://127.0.0.1:8765/`
+- Health: `http://127.0.0.1:8765/health`
 - API docs: `http://127.0.0.1:8765/docs`
 
 ### Example requests
