@@ -375,7 +375,7 @@ async function findPageText(webContents, query, forward = true, findNext = false
   })()`);
 }
 
-async function performAction(action, {fromAI = false} = {}) {
+async function performAction(action) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
     const url = await assertSafeAIUrl(resolveAddressInput(action.url));
@@ -390,7 +390,7 @@ async function performAction(action, {fromAI = false} = {}) {
   if (action.expectedName && target.name !== action.expectedName) throw new Error("The element changed since it was inspected. Inspect the page again.");
   if (target.disabled) throw new Error("That element is disabled.");
   if (action.type === "click" && target.href) await assertSafeAIUrl(new URL(target.href, snapshot.url).href);
-  if (fromAI && actionRequiresApproval({
+  if (actionRequiresApproval({
     type: action.type,
     name: target.name,
     elementType: target.type || "",
@@ -406,7 +406,7 @@ async function performAction(action, {fromAI = false} = {}) {
     const approval = await dialog.showMessageBox(windowRef, {
       type: "warning",
       title: "Approve Zoe AI action",
-      message: `Zoe AI wants to ${actionName} a potentially consequential control.`,
+      message: `Zoe wants to ${actionName} a potentially consequential control.`,
       detail: `Website: ${hostname}\nControl: ${target.name || "(unnamed control)"}\n${action.type === "fill" ? "This field may contain sensitive information." : "This click may submit data or change something on the website."}\n\nApprove only if you recognize this action.`,
       buttons: ["Cancel", "Approve once"],
       defaultId: 0,
@@ -495,8 +495,8 @@ async function runAI(userText) {
         args = JSON.parse(call.function.arguments || "{}");
         if (call.function.name === "inspect_page") result = await pageSnapshot();
         else if (call.function.name === "navigate") result = await performAction({type:"navigate",url:args.url});
-        else if (call.function.name === "click_element") result = await performAction({type:"click",index:args.index,expectedName:args.expectedName},{fromAI:true});
-        else if (call.function.name === "fill_element") result = await performAction({type:"fill",index:args.index,expectedName:args.expectedName,text:args.text},{fromAI:true});
+        else if (call.function.name === "click_element") result = await performAction({type:"click",index:args.index,expectedName:args.expectedName});
+        else if (call.function.name === "fill_element") result = await performAction({type:"fill",index:args.index,expectedName:args.expectedName,text:args.text});
         else throw new Error("Unknown tool.");
       } catch (error) { result = {error:error.message || "Action failed."}; }
       messages.push({role:"tool",tool_call_id:call.id,content:JSON.stringify(result)});
