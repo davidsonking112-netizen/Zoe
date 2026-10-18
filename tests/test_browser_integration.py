@@ -105,3 +105,52 @@ def test_navigation_inspection_fill_and_click(fixture_url: str) -> None:
             await browser.close()
 
     asyncio.run(exercise())
+
+
+def test_semantic_actions_use_accessible_labels_and_roles(fixture_url: str) -> None:
+    async def exercise() -> None:
+        browser = ZoeBrowser()
+        try:
+            await browser.navigate(fixture_url)
+            fill_result = await browser.semantic_action(
+                action="fill",
+                strategy="label",
+                value="Query",
+                text="semantic locator test",
+            )
+            assert fill_result["success"] is True
+            assert fill_result["matched_count"] == 1
+
+            click_result = await browser.semantic_action(
+                action="click",
+                strategy="role",
+                role="button",
+                value="Submit query",
+            )
+            assert click_result["success"] is True
+            observation = await browser.inspect()
+            assert "Submitted: semantic locator test" in observation["text"]
+        finally:
+            await browser.close()
+
+    asyncio.run(exercise())
+
+
+def test_semantic_action_rejects_missing_target(fixture_url: str) -> None:
+    from zoe.browser import LocatorNotFoundError
+
+    async def exercise() -> None:
+        browser = ZoeBrowser()
+        try:
+            await browser.navigate(fixture_url)
+            with pytest.raises(LocatorNotFoundError):
+                await browser.semantic_action(
+                    action="click",
+                    strategy="role",
+                    role="button",
+                    value="Delete account",
+                )
+        finally:
+            await browser.close()
+
+    asyncio.run(exercise())
