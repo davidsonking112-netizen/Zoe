@@ -50,7 +50,8 @@
       "target": [
         "AppImage",
         "deb"
-      ]
+      ],
+      "maintainer": "Luminous Labs Intelligence"
     },
     "nsis": {
       "oneClick": false,
