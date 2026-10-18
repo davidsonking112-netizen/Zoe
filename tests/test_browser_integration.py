@@ -11,7 +11,6 @@ from threading import Thread
 from urllib.parse import urlsplit
 
 import pytest
-
 import zoe.browser as browser_module
 from zoe.browser import ZoeBrowser
 from zoe.security import validate_public_http_url as validate_real_url
