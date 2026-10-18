@@ -44,14 +44,19 @@ function isPrivateHost(hostname) {
   }
   return false;
 }
-function assertSafeWebUrl(raw) {
+function assertBrowserUrl(raw) {
   const url = normalizeUrl(raw);
-  if (!isAllowedNavigation(url) || isPrivateHost(new URL(url).hostname)) throw new Error("For safety, Zoe only opens public HTTP(S) destinations.");
+  if (!isAllowedNavigation(url)) throw new Error("Zoe only opens HTTP(S) websites.");
+  return url;
+}
+function assertSafeAIUrl(raw) {
+  const url = assertBrowserUrl(raw);
+  if (isPrivateHost(new URL(url).hostname)) throw new Error("For safety, AI navigation is limited to public HTTP(S) destinations.");
   return url;
 }
 async function createTab(rawUrl = "https://example.com", select = true) {
   if (tabs.size >= MAX_TABS) throw new Error(`Zoe supports at most ${MAX_TABS} open tabs.`);
-  const url = assertSafeWebUrl(rawUrl);
+  const url = assertBrowserUrl(rawUrl);
   const id = String(nextTabId++);
   const view = new WebContentsView({
     webPreferences: {
@@ -66,14 +71,14 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   tabs.set(id, tab);
   windowRef.contentView.addChildView(view);
   view.webContents.setWindowOpenHandler(({ url: popupUrl }) => {
-    try { void createTab(popupUrl, true); } catch (error) { windowRef.webContents.send("zoe:error", error.message); }
+    void createTab(popupUrl, true).catch(error => windowRef.webContents.send("zoe:error", error.message));
     return { action: "deny" };
   });
   view.webContents.on("will-navigate", (event, target) => {
-    try { assertSafeWebUrl(target); } catch { event.preventDefault(); windowRef.webContents.send("zoe:error", "Blocked navigation to a non-public or unsupported destination."); }
+    try { assertBrowserUrl(target); } catch { event.preventDefault(); windowRef.webContents.send("zoe:error", "Blocked navigation to an unsupported URL scheme."); }
   });
   view.webContents.on("will-redirect", (event, target) => {
-    try { assertSafeWebUrl(target); } catch { event.preventDefault(); windowRef.webContents.send("zoe:error", "Blocked redirect to a non-public or unsupported destination."); }
+    try { assertBrowserUrl(target); } catch { event.preventDefault(); windowRef.webContents.send("zoe:error", "Blocked redirect to an unsupported URL scheme."); }
   });
   view.webContents.on("did-navigate", emitState);
   view.webContents.on("did-navigate-in-page", emitState);
@@ -117,7 +122,7 @@ async function pageSnapshot() {
 async function performAction(action) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
-    const url = assertSafeWebUrl(action.url);
+    const url = assertSafeAIUrl(action.url);
     return withActiveTab(async wc => { await wc.loadURL(url); return {success:true,url:wc.getURL()}; });
   }
   if (action.type === "inspect") return pageSnapshot();
@@ -199,7 +204,7 @@ function registerIpc() {
   ipcMain.handle("zoe:new-tab", (_e,url) => createTab(url || "https://example.com",true));
   ipcMain.handle("zoe:close-tab", (_e,id) => closeTab(id));
   ipcMain.handle("zoe:select-tab", (_e,id) => { if(!tabs.has(String(id))) throw new Error("Tab not found."); activeTabId=String(id); layoutTabs(); emitState(); return tabSummary(activeTab()); });
-  ipcMain.handle("zoe:navigate", (_e,url) => withActiveTab(async wc => { const safe=assertSafeWebUrl(url); await wc.loadURL(safe); return tabSummary(activeTab()); }));
+  ipcMain.handle("zoe:navigate", (_e,url) => withActiveTab(async wc => { const safe=assertBrowserUrl(url); await wc.loadURL(safe); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { wc.reload(); return {success:true}; }));
@@ -229,7 +234,7 @@ app.whenReady().then(async()=>{
   session.fromPartition("persist:zoe-browser").webRequest.onBeforeRequest((details,callback)=>{
     try {
       const url=new URL(details.url);
-      const blocked=!["http:","https:"].includes(url.protocol)||isPrivateHost(url.hostname);
+      const blocked=["file:","javascript:","ftp:","chrome:","devtools:"].includes(url.protocol);
       callback({cancel:blocked});
     } catch { callback({cancel:true}); }
   });
