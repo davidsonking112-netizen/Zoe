@@ -622,15 +622,7 @@ app.whenReady().then(async()=>{
   browserSession.on("will-download", (_event, item) => {
     const downloadsDirectory = app.getPath("downloads");
     fs.mkdirSync(downloadsDirectory, { recursive: true });
-    let requestedName = path.basename(item.getFilename()).replace(/[<>:"\/\\|?*\x00-\x1f]/g, "_") || "download";
-    if (requestedName === "." || requestedName === "..") requestedName = "download";
-    const parsedName = path.parse(requestedName);
-    let destination = path.join(downloadsDirectory, requestedName);
-    let suffix = 1;
-    while (fs.existsSync(destination) || reservedDownloadPaths.has(destination)) {
-      destination = path.join(downloadsDirectory, parsedName.name + " (" + suffix++ + ")" + parsedName.ext);
-    }
-    reservedDownloadPaths.add(destination);
+    const { filename: requestedName, destination } = allocateDownloadPath(downloadsDirectory, item.getFilename(), fs.existsSync, reservedDownloadPaths);
     item.setSavePath(destination);
     const downloadEntry = { filename: requestedName, path: destination, state: "downloading", startedAt: Date.now() };
     downloadHistory.unshift(downloadEntry);
