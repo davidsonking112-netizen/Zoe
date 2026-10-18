@@ -750,18 +750,22 @@ app.whenReady().then(async()=>{
         const guardedTab = tabs.get(String(guardedSummary.id));
         if (!guardedTab || !guardedTab.view) throw new Error("The network-guard smoke test did not create a usable tab.");
         activateAIGuard(guardedTab);
-        let privateRequestBlocked = false;
-        try {
-          await guardedTab.view.webContents.loadURL(`http://127.0.0.1:${address.port}/private-network-probe`);
-        } catch {
-          privateRequestBlocked = true;
-        } finally {
-          clearAIGuard(guardedTab);
-          if (tabs.has(originalTabId)) {
-            activeTabId = originalTabId;
-            layoutTabs();
-            emitState();
-          }
+        const privateUrl = `http://127.0.0.1:${address.port}/private-network-probe`;
+        const navigationAttempt = guardedTab.view.webContents.loadURL(privateUrl).then(
+          () => "loaded",
+          () => "rejected"
+        );
+        const navigationOutcome = await Promise.race([
+          navigationAttempt,
+          new Promise(resolve => setTimeout(() => resolve("timeout"), 5000))
+        ]);
+        let privateRequestBlocked = navigationOutcome === "rejected" ||
+          (navigationOutcome === "timeout" && guardedTab.view.webContents.getURL() !== privateUrl);
+        clearAIGuard(guardedTab);
+        if (tabs.has(originalTabId)) {
+          activeTabId = originalTabId;
+          layoutTabs();
+          emitState();
         }
         if (!privateRequestBlocked) throw new Error("AI-controlled browser network guard allowed a loopback request.");
         console.log("smoke: restored original tab after egress check");
