@@ -6,15 +6,17 @@ loopback URL. Production URL validation remains unchanged.
 from __future__ import annotations
 
 import asyncio
+import importlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from urllib.parse import urlsplit
 
 import pytest
 
-from zoe import browser as browser_module
 from zoe.browser import ZoeBrowser
 from zoe.security import validate_public_http_url as validate_real_url
+
+browser_module = importlib.import_module("zoe.browser")
 
 
 HTML = """<!doctype html>
