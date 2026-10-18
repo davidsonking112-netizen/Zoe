@@ -589,6 +589,23 @@ app.whenReady().then(async()=>{
         console.log("smoke: clicked button");
         const after = await pageSnapshot();
         if (!after.text.includes("Done: zoe")) throw new Error("Electron browser action verification failed.");
+        const webContents = activeTab().view.webContents;
+        const findResult = await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            webContents.removeListener("found-in-page", listener);
+            reject(new Error("Find-in-page did not return a result."));
+          }, 5000);
+          const listener = (_event, result) => {
+            if (!result.finalUpdate) return;
+            clearTimeout(timer);
+            webContents.removeListener("found-in-page", listener);
+            resolve(result);
+          };
+          webContents.on("found-in-page", listener);
+          webContents.findInPage("Done: zoe", { forward: true, findNext: false });
+        });
+        if (findResult.matches < 1) throw new Error("Find-in-page failed to find visible text.");
+        console.log("smoke: find-in-page passed");
         server.close(() => app.exit(0));
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
