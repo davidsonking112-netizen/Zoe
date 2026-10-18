@@ -289,9 +289,19 @@ async function pageSnapshot() {
   return withActiveTab(webContents => webContents.executeJavaScript(`(() => {
     const visible = el => { const s=getComputedStyle(el), r=el.getBoundingClientRect(); return s.display!=="none" && s.visibility!=="hidden" && r.width>0 && r.height>0; };
     const text=(document.body?.innerText||"").slice(0,14000);
+    const nameOf = el => {
+      const labels = el.labels ? Array.from(el.labels).map(label => label.innerText).join(" ").trim() : "";
+      const type = (el.type || "").toLowerCase();
+      const isFormField = ["INPUT","TEXTAREA","SELECT"].includes(el.tagName);
+      const fieldName = ["button","submit","reset"].includes(type) ? el.value : "";
+      const fallback = isFormField
+        ? (fieldName || el.getAttribute("placeholder") || el.getAttribute("name") || el.getAttribute("title") || "")
+        : (el.innerText || el.getAttribute("title") || "");
+      return String(el.getAttribute("aria-label") || labels || fallback || "").trim().slice(0,160);
+    };
     const elements=Array.from(document.querySelectorAll('a[href],button,input,textarea,select,[role="button"],[role="link"]')).filter(visible).slice(0,80).map((el,index)=>({
       index, tag:el.tagName.toLowerCase(), role:el.getAttribute("role")||({A:"link",BUTTON:"button",INPUT:({submit:"button",button:"button",checkbox:"checkbox",radio:"radio"}[el.type]||"textbox")}[el.tagName]||null),
-      name:((el.getAttribute("aria-label")||(el.labels?Array.from(el.labels).map(label=>label.innerText).join(" ").trim():"")||(["INPUT","TEXTAREA","SELECT"].includes(el.tagName)?((["button","submit","reset"].includes((el.type||"").toLowerCase())?el.value:"")||el.getAttribute("placeholder")||el.getAttribute("name")||el.getAttribute("title")||""):(el.innerText||el.getAttribute("title")||"")).trim()).slice(0,160),
+      name:nameOf(el),
       href:el.tagName==="A"?el.href:null,
       placeholder:el.getAttribute("placeholder"), autocomplete:el.getAttribute("autocomplete")||"", formSubmit:(el.tagName==="BUTTON"&&el.type==="submit")||(el.tagName==="INPUT"&&el.type==="submit"), type:el.type||null, disabled:!!el.disabled
     }));
@@ -344,7 +354,16 @@ async function performAction(action, {fromAI = false} = {}) {
       const visible = el => { const s=getComputedStyle(el), r=el.getBoundingClientRect(); return s.display!=="none" && s.visibility!=="hidden" && r.width>0 && r.height>0; };
       const els=Array.from(document.querySelectorAll('a[href],button,input,textarea,select,[role="button"],[role="link"]')).filter(visible).slice(0,80);
       const el=els[p.index];
-      const nameOf = el => ((el.getAttribute("aria-label")||(el.labels?Array.from(el.labels).map(label=>label.innerText).join(" ").trim():"")||(["INPUT","TEXTAREA","SELECT"].includes(el.tagName)?((["button","submit","reset"].includes((el.type||"").toLowerCase())?el.value:"")||el.getAttribute("placeholder")||el.getAttribute("name")||el.getAttribute("title")||""):(el.innerText||el.getAttribute("title")||"")).trim()).slice(0,160);
+      const nameOf = el => {
+        const labels = el.labels ? Array.from(el.labels).map(label => label.innerText).join(" ").trim() : "";
+        const type = (el.type || "").toLowerCase();
+        const isFormField = ["INPUT","TEXTAREA","SELECT"].includes(el.tagName);
+        const fieldName = ["button","submit","reset"].includes(type) ? el.value : "";
+        const fallback = isFormField
+          ? (fieldName || el.getAttribute("placeholder") || el.getAttribute("name") || el.getAttribute("title") || "")
+          : (el.innerText || el.getAttribute("title") || "");
+        return String(el.getAttribute("aria-label") || labels || fallback || "").trim().slice(0,160);
+      };
       if (!el || nameOf(el)!==p.expectedName) throw new Error("The page changed before the action could be completed.");
       if (el.disabled) throw new Error("Element is disabled.");
       if (p.type==="click") { el.click(); return {success:true,action:"click"}; }
@@ -541,11 +560,15 @@ app.whenReady().then(async()=>{
       try {
         const address = server.address();
         await createTab(`http://127.0.0.1:${address.port}/`, true);
+        console.log("smoke: page loaded");
         const before = await pageSnapshot();
+        console.log("smoke: inspected page");
         if (before.title !== "Zoe smoke fixture") throw new Error("Electron browser did not load the fixture.");
         if (JSON.stringify(before).includes("fixture-secret")) throw new Error("Browser inspection leaked a password field value to the AI context.");
         await performAction({type:"fill",index:0,expectedName:"Query",text:"zoe"});
+        console.log("smoke: filled form");
         await performAction({type:"click",index:1,expectedName:"Run"});
+        console.log("smoke: clicked button");
         const after = await pageSnapshot();
         if (!after.text.includes("Done: zoe")) throw new Error("Electron browser action verification failed.");
         server.close(() => app.exit(0));
