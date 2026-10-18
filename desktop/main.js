@@ -314,6 +314,62 @@ async function pageSnapshot() {
     return {url:location.href,title:document.title,text,elements};
   })()`));
 }
+async function findPageText(webContents, query, forward = true, findNext = false) {
+  if (typeof query !== "string" || query.length > 500) throw new Error("Find text must be 500 characters or fewer.");
+  if (!query.trim()) {
+    await webContents.executeJavaScript("window.getSelection()?.removeAllRanges(); window.__zoeFindState = null;");
+    return { success: true, matches: 0, activeMatchOrdinal: 0, finalUpdate: true };
+  }
+  const encodedQuery = JSON.stringify(query);
+  return webContents.executeJavaScript(`(() => {
+    const query = ${encodedQuery};
+    const foldedQuery = query.toLocaleLowerCase();
+    const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent || parent.closest("script,style,noscript,template,[hidden],[aria-hidden='true']")) return NodeFilter.FILTER_REJECT;
+        const style = getComputedStyle(parent);
+        if (style.display === "none" || style.visibility === "hidden") return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let matches = 0;
+    let node;
+    while ((node = walker.nextNode()) && matches < 10000) {
+      const text = (node.nodeValue || "").toLocaleLowerCase();
+      let offset = 0;
+      while ((offset = text.indexOf(foldedQuery, offset)) !== -1) {
+        matches += 1;
+        offset += Math.max(1, foldedQuery.length);
+        if (matches >= 10000) break;
+      }
+    }
+    const previous = window.__zoeFindState;
+    const isNewQuery = !findNext || !previous || previous.query !== query;
+    let activeMatchOrdinal = previous?.activeMatchOrdinal || 0;
+    if (!matches) {
+      window.getSelection()?.removeAllRanges();
+      window.__zoeFindState = { query, matches: 0, activeMatchOrdinal: 0 };
+      return { success: true, matches: 0, activeMatchOrdinal: 0, finalUpdate: true };
+    }
+    if (isNewQuery) {
+      window.getSelection()?.removeAllRanges();
+      const found = window.find(query, false, false, true, false, false, false);
+      activeMatchOrdinal = found ? 1 : 0;
+    } else {
+      const found = window.find(query, false, ${forward === false}, true, false, false, false);
+      if (found) {
+        const direction = ${forward === false} ? -1 : 1;
+        activeMatchOrdinal = ((activeMatchOrdinal - 1 + direction + matches) % matches) + 1;
+      } else {
+        activeMatchOrdinal = 0;
+      }
+    }
+    window.__zoeFindState = { query, matches, activeMatchOrdinal };
+    return { success: true, matches, activeMatchOrdinal, finalUpdate: true };
+  })()`);
+}
+
 async function performAction(action, {fromAI = false} = {}) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
@@ -455,18 +511,8 @@ function registerIpc() {
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { wc.reload(); return {success:true}; }));
-  ipcMain.handle("zoe:find", (_event, query, forward = true, findNext = false) => withActiveTab(wc => {
-    if (typeof query !== "string" || query.length > 500) throw new Error("Find text must be 500 characters or fewer.");
-    if (!query.trim()) {
-      wc.stopFindInPage("clearSelection");
-      return { success: true, cleared: true };
-    }
-    return wc.findInPage(query, { forward: forward !== false, findNext: findNext === true });
-  }));
-  ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => {
-    wc.stopFindInPage("clearSelection");
-    return { success: true };
-  }));
+  ipcMain.handle("zoe:find", (_event, query, forward = true, findNext = false) => withActiveTab(wc => findPageText(wc, query, forward, findNext)));
+  ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => findPageText(wc, "", true, false)));
   ipcMain.handle("zoe:toggle-ai", () => { aiPanelVisible=!aiPanelVisible; layoutTabs(); emitState(); return aiPanelVisible; });
   ipcMain.handle("zoe:inspect", pageSnapshot);
   ipcMain.handle("zoe:action", (_e,action) => performAction(action));
@@ -590,22 +636,10 @@ app.whenReady().then(async()=>{
         const after = await pageSnapshot();
         if (!after.text.includes("Done: zoe")) throw new Error("Electron browser action verification failed.");
         const webContents = activeTab().view.webContents;
-        webContents.focus();
-        await new Promise(resolve => setTimeout(resolve, 150));
-        const findResult = await new Promise((resolve, reject) => {
-          const timer = setTimeout(() => {
-            webContents.removeListener("found-in-page", listener);
-            reject(new Error("Find-in-page did not return a result."));
-          }, 10000);
-          const listener = (_event, result) => {
-            clearTimeout(timer);
-            webContents.removeListener("found-in-page", listener);
-            resolve(result);
-          };
-          webContents.on("found-in-page", listener);
-          webContents.findInPage("Done: zoe", { forward: true, findNext: false });
-        });
-        if (findResult.matches < 1) throw new Error("Find-in-page failed to find visible text.");
+        const findResult = await findPageText(webContents, "Done: zoe", true, false);
+        if (findResult.matches < 1 || findResult.activeMatchOrdinal !== 1) {
+          throw new Error("Find-in-page failed to find and select visible text.");
+        }
         console.log("smoke: find-in-page passed");
         server.close(() => app.exit(0));
       } catch (error) {
