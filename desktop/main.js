@@ -666,12 +666,13 @@ app.whenReady().then(async()=>{
     server.listen(0, "127.0.0.1", async () => {
       try {
         const address = server.address();
-        await createTab(`http://127.0.0.1:${address.port}/`, true);
+        await createTab(`http://127.0.0.1:${address.port}/?access_token=fixture-url-secret`, true);
         console.log("smoke: page loaded");
         const before = await pageSnapshot();
         console.log("smoke: inspected page");
         if (before.title !== "Zoe smoke fixture") throw new Error("Electron browser did not load the fixture.");
         if (JSON.stringify(before).includes("fixture-secret")) throw new Error("Browser inspection leaked a password field value to the AI context.");
+        if (JSON.stringify(before).includes("fixture-url-secret")) throw new Error("Browser inspection leaked a sensitive URL parameter to the AI context.");
         await performAction({type:"fill",index:0,expectedName:"Query",text:"zoe"});
         console.log("smoke: filled form");
         await performAction({type:"click",index:1,expectedName:"Run"});
@@ -694,6 +695,9 @@ app.whenReady().then(async()=>{
               modelCalls += 1;
               if (modelCalls === 1 && JSON.stringify(payload.messages).includes("fixture-secret")) {
                 throw new Error("A password value leaked into the model request.");
+              }
+              if (modelCalls === 1 && JSON.stringify(payload.messages).includes("fixture-url-secret")) {
+                throw new Error("A sensitive URL parameter leaked into the model request.");
               }
               if (modelCalls === 2 && !payload.messages.some(message => message.role === "tool" && message.content.includes("Zoe smoke fixture"))) {
                 throw new Error("The model did not receive the browser tool result.");
