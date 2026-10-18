@@ -77,3 +77,14 @@ def test_task_endpoint_rejects_unsupported_actions() -> None:
             json={"steps": [{"action": "execute_shell"}]},
         )
         assert response.status_code == 422
+
+
+
+def test_dashboard_is_served_without_starting_browser() -> None:
+    with TestClient(app) as client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "Zoe" in response.text
+        assert "Run a bounded task" in response.text
+        assert "X-Zoe-Session-ID" in response.text
+        assert client.get("/health").json()["browser_started"] is False
