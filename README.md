@@ -25,7 +25,7 @@
 - [x] Isolated browser sessions with a configurable active-session cap and idle expiry
 - [x] Session create/list/close API and `X-Zoe-Session-ID` routing
 - [x] Bounded sequential task execution API with per-step results, stop-on-error behavior, timeouts, and text/URL verification
-- [x] Semantic locator API with exact-match ambiguity checks
+- [x] Semantic locator API with exact-match ambiguity checks\n- [x] Async Python client for provider-neutral agent integrations, session routing, task execution, and structured API errors
 - [ ] Agent adapter (model-provider agnostic)
 - [x] Local observer dashboard served by the API, with session selection, page screenshot, inspection, browser actions, task runner, and activity log
 - [ ] Permission policy and broader security evaluation
@@ -95,7 +95,7 @@ curl -X POST http://127.0.0.1:8765/v1/browser/fill \
   -d '{"selector":"input[name=q]","text":"Zoe AI browser"}'
 ```
 
-## API overview
+## Python client\n\nAgents can use Zoe without manually assembling HTTP requests. The client does not depend on a particular model provider:\n\n```python\nimport asyncio\nfrom zoe.client import ZoeClient\n\nasync def main():\n    async with ZoeClient() as zoe:\n        async with await zoe.create_session() as browser:\n            await browser.navigate("https://example.com")\n            page = await browser.inspect()\n            print(page["title"], page["text"])\n            result = await browser.run_task([\n                {"action": "verify_text", "expected": "Example Domain"}\n            ])\n            print(result["success"])\n\nasyncio.run(main())\n```\n\nThe client closes sessions created through it when the client context exits. The browser API remains local-only and unauthenticated.\n\n## API overview
 
 | Method | Endpoint | Purpose |
 |---|---|---|
