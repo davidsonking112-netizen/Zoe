@@ -119,7 +119,7 @@ function isAllowedModelEndpoint(raw) {
 }
 function sanitizeDownloadFilename(rawFilename) {
   const raw = typeof rawFilename === "string" ? rawFilename : "";
-  const filename = path.basename(raw).replace(/[<>:"/\\\\|?*\\x00-\\x1f]/g, "_") || "download";
+  const filename = path.basename(raw).replace(/[<>:"\/\\|?*\x00-\x1f]/g, "_") || "download";
   return filename === "." || filename === ".." ? "download" : filename;
 }
 
