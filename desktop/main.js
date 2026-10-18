@@ -16,6 +16,12 @@ let aiConfig = { endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: 
 let aiHistory = [];
 const tabs = new Map();
 
+// GitHub Actions runs the Electron smoke fixture under Xvfb; only that isolated
+// test process disables Chromium's sandbox. Normal desktop launches keep it on.
+if (process.env.ZOE_SMOKE_TEST === "1" && process.platform === "linux") {
+  app.commandLine.appendSwitch("no-sandbox");
+}
+
 function activeTab() { return tabs.get(activeTabId) || null; }
 function tabSummary(tab) {
   return { id: tab.id, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() || "New tab", loading: tab.view.webContents.isLoading(), canGoBack: tab.view.webContents.navigationHistory.canGoBack(), canGoForward: tab.view.webContents.navigationHistory.canGoForward() };
