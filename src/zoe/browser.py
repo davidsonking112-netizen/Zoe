@@ -22,16 +22,61 @@ class AmbiguousLocatorError(ValueError):
     """Raised when a semantic locator matches more than one element."""
 
 
+class BrowserPool:
+    """Own one Firefox process and provide it to isolated browser contexts."""
+
+    def __init__(self, *, headless: bool = True) -> None:
+        self.headless = headless
+        self._playwright: Playwright | None = None
+        self._browser: Browser | None = None
+        self._lock = asyncio.Lock()
+
+    async def get_browser(self) -> Browser:
+        async with self._lock:
+            if self._browser is not None and self._browser.is_connected():
+                return self._browser
+            await self._stop_unlocked()
+            self._playwright = await async_playwright().start()
+            try:
+                self._browser = await self._playwright.firefox.launch(headless=self.headless)
+            except Exception:
+                await self._stop_unlocked()
+                raise
+            return self._browser
+
+    async def close(self) -> None:
+        async with self._lock:
+            await self._stop_unlocked()
+
+    async def _stop_unlocked(self) -> None:
+        if self._owns_browser and self._browser is not None:
+            try:
+                await self._browser.close()
+            except Exception:
+                pass
+        self._browser = None
+        if self._owns_browser and self._playwright is not None:
+            try:
+                await self._playwright.stop()
+            except Exception:
+                pass
+        self._playwright = None
+
+
 class ZoeBrowser:
-    """A lazily-started Firefox runtime with a single page.
+    """A lazily-started Firefox page inside its own isolated browser context."""
 
-    This class is intentionally single-session in v0.1. Do not share one instance
-    between untrusted users or independent concurrent agents.
-    """
-
-    def __init__(self, *, headless: bool = True, navigation_timeout_ms: int = 20_000) -> None:
+    def __init__(
+        self,
+        *,
+        headless: bool = True,
+        navigation_timeout_ms: int = 20_000,
+        browser_pool: BrowserPool | None = None,
+    ) -> None:
         self.headless = headless
         self.navigation_timeout_ms = navigation_timeout_ms
+        self._browser_pool = browser_pool
+        self._owns_browser = browser_pool is None
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
@@ -46,9 +91,12 @@ class ZoeBrowser:
         async with self._lock:
             if self.started:
                 return
-            self._playwright = await async_playwright().start()
             try:
-                self._browser = await self._playwright.firefox.launch(headless=self.headless)
+                if self._browser_pool is None:
+                    self._playwright = await async_playwright().start()
+                    self._browser = await self._playwright.firefox.launch(headless=self.headless)
+                else:
+                    self._browser = await self._browser_pool.get_browser()
                 self._context = await self._browser.new_context(
                     accept_downloads=False,
                     service_workers="block",
