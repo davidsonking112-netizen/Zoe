@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl}=require("../security");
+const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl,assertSafeAIUrl}=require("../security");
 
 test("normalizes domain searches and URLs",()=>{
   assert.equal(normalizeUrl("example.com"),"https://example.com/");
