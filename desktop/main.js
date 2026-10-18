@@ -80,7 +80,7 @@ async function clearBrowsingData() {
     type: "warning",
     title: "Clear browsing data",
     message: "Clear Zoe's browsing history, cookies, site storage, and cache?",
-    detail: "This can sign you out of websites and reset site preferences. Your bookmarks will be kept.",
+    detail: "This can sign you out of websites, reset site preferences and session-scoped permission choices. Your bookmarks will be kept.",
     buttons: ["Cancel", "Clear browsing data"],
     defaultId: 0,
     cancelId: 0,
@@ -92,6 +92,7 @@ async function clearBrowsingData() {
     const browserSession = session.fromPartition("persist:zoe-browser");
     await browserSession.clearStorageData({ storages: ["cookies", "localstorage", "indexdb", "serviceworkers", "cachestorage"] });
     await browserSession.clearCache();
+    permissionDecisions.clear();
     rebuildApplicationMenu();
     reportNotice("Browsing history, cookies, site storage, and cache cleared. Bookmarks were kept.");
   } catch (error) {
@@ -590,7 +591,7 @@ app.whenReady().then(async()=>{
   const previousTabs = browserData.getSessionTabs();
   rebuildApplicationMenu();
   const browserSession = session.fromPartition("persist:zoe-browser");
-  const permissionDecisions = new Map();
+  permissionDecisions = new Map();
   const permissionKey = (origin, permission) => origin + "|" + permission;
   const promptablePermissions = new Set(["media", "geolocation", "notifications", "clipboard-read"]);
   browserSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
