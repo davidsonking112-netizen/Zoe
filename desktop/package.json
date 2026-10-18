@@ -6,7 +6,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check browser-data.js",
+    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check browser-data.js && node --check test/security.test.js && node --check test/browser-data.test.js",
     "test": "node --test",
     "smoke": "electron --no-sandbox .",
     "pack": "electron-builder --dir",
@@ -36,14 +36,21 @@
     "asar": true,
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "linux": {
       "category": "Network;WebBrowser;",
-      "target": ["AppImage", "deb"]
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     },
     "nsis": {
       "oneClick": false,
