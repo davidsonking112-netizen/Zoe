@@ -660,7 +660,7 @@ app.whenReady().then(async()=>{
   if (process.env.ZOE_SMOKE_TEST === "1") {
     const server = http.createServer((_request, response) => {
       response.writeHead(200, {"content-type":"text/html; charset=utf-8"});
-      response.end('<!doctype html><title>Zoe smoke fixture</title><label>Query <input placeholder="Query"></label><button type="button" onclick="document.querySelector(\'#result\').textContent=\'Done: \'+document.querySelector(\'input\').value">Run</button><p id="result"></p><label>Password <input type="password" autocomplete="current-password" value="fixture-secret"></label>');
+      response.end('<!doctype html><title>Zoe smoke fixture</title><label>Query <input placeholder="Query"></label><button type="button" onclick="document.querySelector(\'#result\').textContent=\'Done: \'+document.querySelector(\'input\').value">Run</button><p id="result"></p><label>Password <input type="password" autocomplete="current-password" value="fixture-secret"></label><button type="submit" onclick="document.title=&quot;DANGER EXECUTED&quot;">Delete account</button>');
     });
     let modelServer;
     server.listen(0, "127.0.0.1", async () => {
@@ -698,9 +698,14 @@ app.whenReady().then(async()=>{
               if (modelCalls === 2 && !payload.messages.some(message => message.role === "tool" && message.content.includes("Zoe smoke fixture"))) {
                 throw new Error("The model did not receive the browser tool result.");
               }
+              if (modelCalls === 3 && !JSON.stringify(payload.messages).includes("Cancelled by you; Zoe did not perform the action.")) {
+                throw new Error("The model did not receive the denied-action result.");
+              }
               const message = modelCalls === 1
                 ? { role: "assistant", tool_calls: [{ id: "zoe_smoke_inspect", type: "function", function: { name: "inspect_page", arguments: "{}" } }] }
-                : { role: "assistant", content: "The Zoe smoke fixture shows the completed result Done: zoe." };
+                : modelCalls === 2
+                  ? { role: "assistant", tool_calls: [{ id: "zoe_smoke_delete", type: "function", function: { name: "click_element", arguments: JSON.stringify({ index: 3, expectedName: "Delete account" }) } }] }
+                  : { role: "assistant", content: "I did not execute the Delete account action because approval was denied." };
               response.writeHead(200, { "content-type": "application/json" });
               response.end(JSON.stringify({ choices: [{ message }] }));
             } catch (error) {
@@ -716,11 +721,22 @@ app.whenReady().then(async()=>{
           model: "zoe-smoke-model",
           apiKey: ""
         };
-        const aiResult = await runAI("Summarize the current page and verify the result.");
-        if (!aiResult.text.includes("Done: zoe") || modelCalls !== 2) {
-          throw new Error("OpenAI-compatible model/tool integration smoke test failed.");
+        const originalShowMessageBox = dialog.showMessageBox;
+        dialog.showMessageBox = async () => ({ response: 0 });
+        let aiResult;
+        try {
+          aiResult = await runAI("Inspect the page and attempt the Delete account button only if approved.");
+        } finally {
+          dialog.showMessageBox = originalShowMessageBox;
         }
-        console.log("smoke: model tool-call loop passed with privacy-safe context");
+        const afterAIPage = await pageSnapshot();
+        if (!aiResult.text.includes("approval was denied") || modelCalls !== 3) {
+          throw new Error("OpenAI-compatible model/tool integration or approval smoke test failed.");
+        }
+        if (afterAIPage.title !== "Zoe smoke fixture") {
+          throw new Error("Zoe performed a consequential action without approval.");
+        }
+        console.log("smoke: model tool-call loop, privacy boundary, and denied consequential action passed");
         await new Promise(resolve => modelServer.close(resolve));
         server.close(() => app.exit(0));
       } catch (error) {
