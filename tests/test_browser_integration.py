@@ -15,6 +15,7 @@ import pytest
 
 from zoe.browser import ZoeBrowser
 from zoe.security import validate_public_http_url as validate_real_url
+from zoe.tasks import TaskRequest, TaskStep, run_task
 
 browser_module = importlib.import_module("zoe.browser")
 
@@ -150,6 +151,43 @@ def test_semantic_action_rejects_missing_target(fixture_url: str) -> None:
                     role="button",
                     value="Delete account",
                 )
+        finally:
+            await browser.close()
+
+    asyncio.run(exercise())
+
+
+
+def test_task_runner_executes_and_verifies_real_browser_workflow(fixture_url: str) -> None:
+    async def exercise() -> None:
+        browser = ZoeBrowser()
+        try:
+            result = await run_task(
+                browser,
+                TaskRequest(steps=[
+                    TaskStep(action="navigate", url=fixture_url),
+                    TaskStep(
+                        action="semantic_action",
+                        operation="fill",
+                        strategy="label",
+                        value="Query",
+                        text="agent task test",
+                    ),
+                    TaskStep(
+                        action="semantic_action",
+                        operation="click",
+                        strategy="role",
+                        role="button",
+                        value="Submit query",
+                    ),
+                    TaskStep(action="verify_text", expected="Submitted: agent task test"),
+                    TaskStep(action="verify_url", expected="/"),
+                ]),
+            )
+            assert result.success is True
+            assert result.completed_steps == 5
+            assert result.total_steps == 5
+            assert all(step.success for step in result.steps)
         finally:
             await browser.close()
 
