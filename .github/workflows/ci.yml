@@ -33,6 +33,9 @@ jobs:
         env:
           ZOE_SMOKE_TEST: "1"
         run: timeout 90s xvfb-run -a npm run smoke
+      - name: Verify desktop application packaging
+        working-directory: desktop
+        run: timeout 180s npm run pack
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
