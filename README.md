@@ -226,3 +226,8 @@ Do not call Zoe 1.0 complete until all of these are true:
 - [ ] Release artifacts, versioning, signing/notarization status, known issues, and rollback steps are documented.
 
 A passing unit suite or a successful package build alone does not satisfy the 1.0 gate.
+
+
+## Release readiness
+
+The complete 1.0 acceptance checklist, manual platform verification, security gates, signing requirements, and rollback procedure are documented in [docs/RELEASE.md](docs/RELEASE.md). Do not call this 1.0 until the checklist is evidenced on the release commit.
