@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
@@ -15,7 +14,6 @@ from zoe.browser import (
     BrowserNotStartedError,
     LocatorNotFoundError,
 )
-from zoe.dashboard import DASHBOARD_HTML
 from zoe.schemas import (
     CloseSessionResult,
     CreateSessionResult,
@@ -214,10 +212,3 @@ async def execute_task(
     except Exception as exc:
         _raise_browser_error(exc)
         raise
-
-
-
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def dashboard() -> str:
-    """Serve Zoe's local observer dashboard."""
-    return DASHBOARD_HTML
