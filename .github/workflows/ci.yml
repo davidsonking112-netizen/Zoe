@@ -19,12 +19,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
       - name: Check desktop JavaScript
         working-directory: desktop
         run: npm run check:js
       - name: Test desktop security helpers
         working-directory: desktop
         run: npm test
+      - name: Smoke-test the actual Electron browser
+        working-directory: desktop
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: xvfb-run -a npm run smoke
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
