@@ -13,8 +13,8 @@ Zoe is a normal desktop browser with an integrated AI assistant, not a special-p
 - `zoe.api`: exposes a local FastAPI automation interface; it does not serve the desktop UI.
 - `desktop/main.js`: owns the Electron window, browser tabs, URL policy, model calls, and bounded AI tool loop.
 - `desktop/preload.js`: exposes a narrow, explicit IPC bridge; renderer Node integration is disabled.
-- `desktop/renderer/`: ordinary browser chrome and an optional AI assistant sidebar.
-- `desktop/security.js`: URL and model-endpoint validation.
+- `desktop/renderer/`: ordinary browser chrome, standard navigation controls, context-menu feedback, download status, and an optional AI assistant sidebar.\n- Native Electron menus provide bookmarks, recent history, and a confirmed clear-browsing-data action; downloads are saved with collision-safe filenames.
+- `desktop/security.js`: URL/search input parsing, public-destination checks, model-endpoint validation, and consequential-action classification.\n- `desktop/browser-data.js`: bounded, validated, atomic persistence for bookmarks and history.
 - `zoe.tasks`: executes bounded, explicit sequential task steps and records per-step outcomes.
 - `zoe.client`: async Python SDK for session-scoped browser operations and task execution; it is model-provider neutral.
 - `tests/`: tests API behavior and URL policy, plus an end-to-end Firefox workflow against a deterministic local fixture server. The integration test temporarily permits only its own loopback fixture URL through a monkeypatch; production policy remains unchanged.
@@ -39,10 +39,10 @@ The browser launches lazily. A health check must not start Firefox.
 
 - Legacy requests without a session header use one shared default page. Independent sessions are available through `/v1/sessions` and the `X-Zoe-Session-ID` header.
 - The default cap is four isolated sessions; sessions expire after 15 minutes idle when a manager operation triggers expiry checks. Separate browser processes cost more memory than shared-process contexts.
-- The API has no authentication and must remain bound to localhost.
+- The Python automation API has no authentication and must remain bound to localhost. The desktop browser is a normal browser and may navigate to private addresses when the human enters them; AI-initiated navigation is more restrictive.\n- AI navigation resolves hostnames and rejects known private/reserved results, but the browser performs its own DNS resolution. This does not eliminate DNS rebinding or all subresource-based access risks; network-level egress controls are still needed for high-assurance agent deployments.
 - URL checks are defense in depth, not a complete SSRF boundary. DNS rebinding and browser routing need network-level egress controls in a production deployment.
-- Selector-based actions can be ambiguous and need stronger semantic locator support and explicit action verification.
-- Screenshots are returned as base64 and should be bounded and access-controlled before broader use.
+- Desktop AI tools use a bounded call loop and require a native approval dialog for detected consequential clicks and sensitive field fills. The classifier is a safety layer, not a perfect understanding of website intent.\n- Page snapshots intentionally avoid serializing ordinary form values; website text remains untrusted and can still attempt prompt injection.
+- Screenshots are returned as base64 by the Python automation API and should be bounded and access-controlled before broader use.\n- Cross-platform packaging is configured, but unsigned installers and successful CI packaging do not replace installation tests, code signing, notarization, or a security review.
 - Website text is untrusted input. It must never override system policy or grant itself permissions.
 
 ## Proposed next phases
