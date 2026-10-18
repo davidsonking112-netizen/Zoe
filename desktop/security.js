@@ -91,6 +91,24 @@ async function assertPublicHttpUrl(raw, lookupAll = lookup) {
   return url;
 }
 
+async function assertSafeAIUrl(raw, lookupFn = lookup) {
+  const url = normalizeUrl(raw);
+  const hostname = new URL(url).hostname.replace(/^\\[|\\]$/g, "");
+  if (isPrivateHost(hostname)) throw new Error("For safety, AI navigation is limited to public HTTP(S) destinations.");
+  if (!isIP(hostname)) {
+    let addresses;
+    try {
+      addresses = await lookupFn(hostname, { all: true, verbatim: true });
+    } catch {
+      throw new Error("AI navigation was blocked because Zoe could not verify that the destination is public.");
+    }
+    if (!Array.isArray(addresses) || !addresses.length || addresses.some(({ address }) => isPrivateHost(address))) {
+      throw new Error("AI navigation was blocked because the destination resolves to a private or reserved network.");
+    }
+  }
+  return url;
+}
+
 function isAllowedNavigation(raw) {
   try { const url=new URL(raw); return ["http:","https:"].includes(url.protocol)&&!url.username&&!url.password; } catch { return false; }
 }
