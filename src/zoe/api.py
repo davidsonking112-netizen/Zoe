@@ -10,12 +10,12 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from zoe import __version__
-from zoe.dashboard import DASHBOARD_HTML
 from zoe.browser import (
     AmbiguousLocatorError,
     BrowserNotStartedError,
     LocatorNotFoundError,
 )
+from zoe.dashboard import DASHBOARD_HTML
 from zoe.schemas import (
     CloseSessionResult,
     CreateSessionResult,
