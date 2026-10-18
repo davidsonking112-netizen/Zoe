@@ -25,7 +25,7 @@ class TaskStep(BaseModel):
     expected: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
-    def validate_required_fields(self) -> "TaskStep":
+    def validate_required_fields(self) -> TaskStep:
         required = {
             "navigate": ("url",),
             "click": ("selector",),
