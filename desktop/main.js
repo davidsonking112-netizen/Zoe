@@ -621,6 +621,7 @@ app.whenReady().then(async()=>{
       response.writeHead(200, {"content-type":"text/html; charset=utf-8"});
       response.end('<!doctype html><title>Zoe smoke fixture</title><label>Query <input placeholder="Query"></label><button type="button" onclick="document.querySelector(\'#result\').textContent=\'Done: \'+document.querySelector(\'input\').value">Run</button><p id="result"></p><label>Password <input type="password" autocomplete="current-password" value="fixture-secret"></label>');
     });
+    let modelServer;
     server.listen(0, "127.0.0.1", async () => {
       try {
         const address = server.address();
@@ -642,9 +643,48 @@ app.whenReady().then(async()=>{
           throw new Error("Find-in-page failed to find and select visible text.");
         }
         console.log("smoke: find-in-page passed");
+        let modelCalls = 0;
+        modelServer = http.createServer((request, response) => {
+          let body = "";
+          request.on("data", chunk => { body += chunk; });
+          request.on("end", () => {
+            try {
+              const payload = JSON.parse(body);
+              modelCalls += 1;
+              if (modelCalls === 1 && JSON.stringify(payload.messages).includes("fixture-secret")) {
+                throw new Error("A password value leaked into the model request.");
+              }
+              if (modelCalls === 2 && !payload.messages.some(message => message.role === "tool" && message.content.includes("Zoe smoke fixture"))) {
+                throw new Error("The model did not receive the browser tool result.");
+              }
+              const message = modelCalls === 1
+                ? { role: "assistant", tool_calls: [{ id: "zoe_smoke_inspect", type: "function", function: { name: "inspect_page", arguments: "{}" } }] }
+                : { role: "assistant", content: "The Zoe smoke fixture shows the completed result Done: zoe." };
+              response.writeHead(200, { "content-type": "application/json" });
+              response.end(JSON.stringify({ choices: [{ message }] }));
+            } catch (error) {
+              response.writeHead(400, { "content-type": "application/json" });
+              response.end(JSON.stringify({ error: error.message || "Invalid smoke request." }));
+            }
+          });
+        });
+        await new Promise(resolve => modelServer.listen(0, "127.0.0.1", resolve));
+        const modelAddress = modelServer.address();
+        aiConfig = {
+          endpoint: "http://127.0.0.1:" + modelAddress.port + "/v1/chat/completions",
+          model: "zoe-smoke-model",
+          apiKey: ""
+        };
+        const aiResult = await runAI("Summarize the current page and verify the result.");
+        if (!aiResult.text.includes("Done: zoe") || modelCalls !== 2) {
+          throw new Error("OpenAI-compatible model/tool integration smoke test failed.");
+        }
+        console.log("smoke: model tool-call loop passed with privacy-safe context");
+        await new Promise(resolve => modelServer.close(resolve));
         server.close(() => app.exit(0));
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
+        if (modelServer && modelServer.listening) modelServer.close();
         server.close(() => app.exit(1));
       }
     });
