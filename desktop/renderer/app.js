@@ -45,7 +45,7 @@ async function searchInPage(forward=true,findNext=false){
     await window.zoe.stopFind();
     return;
   }
-  try{await window.zoe.findInPage(query,forward,findNext);}catch(e){toast(e.message);}
+  try{const result=await window.zoe.findInPage(query,forward,findNext);$("find-count").textContent=result.matches===0?"No matches":`${result.activeMatchOrdinal} of ${result.matches}`;}catch(e){toast(e.message);}
 }
 $("find-query").addEventListener("input",()=>{
   clearTimeout(findTimer);
