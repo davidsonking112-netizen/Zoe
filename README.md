@@ -22,7 +22,9 @@
 - [x] Unit tests and CI workflow
 - [x] Firefox runtime smoke test in CI
 - [x] Browser integration test against a deterministic local fixture server (navigation, inspection, fill, click, and visible page-state verification)
-- [ ] Session isolation and multi-task lifecycle
+- [x] Isolated browser sessions with a configurable active-session cap and idle expiry
+- [x] Session create/list/close API and `X-Zoe-Session-ID` routing
+- [ ] Task execution lifecycle and semantic locator API
 - [ ] Agent adapter (model-provider agnostic)
 - [ ] Observer dashboard
 - [ ] Permission policy and broader security evaluation
