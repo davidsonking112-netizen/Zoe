@@ -2,7 +2,7 @@
 
 **Zoe is a normal desktop web browser with an integrated AI assistant.** It has familiar tabs, an address bar, navigation controls, and a real web page area. AI is a built-in feature that can understand the current page and use limited browser tools; Zoe is not a separate agent-only dashboard.
 
-> **Status: early alpha / experimental.** The repository now contains an Electron desktop-browser prototype with standard browser chrome and an integrated AI sidebar, plus a separate Playwright-based automation API and Python SDK. The desktop prototype is not yet production-ready; security, packaging, downloads/bookmarks/history, model compatibility, and end-to-end validation remain incomplete.
+> **Status: early alpha / experimental.** The repository now contains a normal Electron/Chromium desktop browser with an integrated AI sidebar, persistent bookmarks/history, download handling, privacy controls, and a separate Playwright automation API/Python SDK. It remains alpha: release packaging, platform-specific verification, signing, deeper security review, and broad real-site evaluation still need completion.
 
 ## Product direction
 
@@ -49,7 +49,20 @@ npm install
 npm start
 ```
 
-The browser opens a normal tabbed window with an optional AI sidebar. The default model endpoint is a local Ollama OpenAI-compatible endpoint at `http://127.0.0.1:11434/v1/chat/completions`, using model `qwen3.5:9b`. Start Ollama and pull a compatible model first, or configure an HTTPS OpenAI-compatible endpoint in the AI settings. API keys are held in memory for the current app session and are not saved by the prototype. The AI integration is experimental; do not use it for sensitive accounts or consequential actions.
+The browser opens a normal tabbed window with an optional AI sidebar. The default model endpoint is a local Ollama OpenAI-compatible endpoint at `http://127.0.0.1:11434/v1/chat/completions`, using model `qwen3.5:9b`. Start Ollama and pull a compatible model first, or configure an HTTPS OpenAI-compatible endpoint in the AI settings. API keys are held in memory for the current app session and are not saved. Native menus provide History, Bookmarks, and Clear Browsing Data; downloads go to the system Downloads folder with progress notifications. AI actions are bounded, and consequential clicks or sensitive field fills require an approval dialog. This is still alpha software: use a test profile for sensitive work until security and installed-build testing are complete.
+
+
+## Build a desktop package
+
+From `desktop/`:
+
+```bash
+npm install
+npm run pack       # unpacked app, useful for CI validation
+npm run dist       # platform-native package for the current OS
+```
+
+Tagged releases (`v*`) use `.github/workflows/release.yml` to build Linux, Windows, and macOS assets. These builds are not code-signed or notarized by default; add platform certificates and complete platform-specific installation tests before calling a release production-ready.
 
 ## Run the automation API (developer / agent integration)
 
