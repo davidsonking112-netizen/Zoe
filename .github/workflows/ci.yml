@@ -22,12 +22,18 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm install --no-audit --no-fund
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
       - name: Check desktop JavaScript
         working-directory: desktop
         run: npm run check:js
       - name: Test desktop security helpers
         working-directory: desktop
         run: npm test
+      - name: Smoke-test Electron browser and AI-safe page inspection
+        working-directory: desktop
+        run: timeout 90s xvfb-run -a env ZOE_SMOKE_TEST=1 npm start
       - name: Smoke-test the actual Electron browser
         working-directory: desktop
         env:
