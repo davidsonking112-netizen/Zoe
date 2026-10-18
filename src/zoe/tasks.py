@@ -46,8 +46,11 @@ class TaskStep(BaseModel):
             raise ValueError("Unsupported semantic locator strategy.")
         if self.action == "semantic_action" and self.strategy == "role" and not self.role:
             raise ValueError("role is required for semantic role actions.")
-        if self.action == "semantic_action" and self.operation == "fill" and self.text is None:
-            raise ValueError("text is required when a semantic action fills a field.")
+        if self.action == "semantic_action" and self.operation == "fill":
+            if self.strategy not in {"label", "placeholder", "test_id"}:
+                raise ValueError("semantic fill supports label, placeholder, or test_id strategies.")
+            if self.text is None:
+                raise ValueError("text is required when a semantic action fills a field.")
         return self
 
 
