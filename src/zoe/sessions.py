@@ -6,7 +6,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from zoe.browser import ZoeBrowser
+from zoe.browser import BrowserPool, ZoeBrowser
 
 
 class SessionNotFoundError(LookupError):
@@ -27,8 +27,8 @@ class _Session:
 class SessionManager:
     """Own browser instances and enforce session limits and idle expiry.
 
-    Each session receives its own Playwright/Firefox process and context. This gives
-    stronger isolation than sharing a page, at the cost of higher memory usage.
+    Each session receives its own browser context and page, isolating cookies and
+    page state while sharing one Firefox process to reduce per-session overhead.
     """
 
     def __init__(
@@ -49,8 +49,11 @@ class SessionManager:
         self.navigation_timeout_ms = navigation_timeout_ms
         self._sessions: dict[str, _Session] = {}
         self._lock = asyncio.Lock()
+        self._browser_pool = BrowserPool(headless=headless)
         self._default_browser = ZoeBrowser(
-            headless=headless, navigation_timeout_ms=navigation_timeout_ms
+            headless=headless,
+            navigation_timeout_ms=navigation_timeout_ms,
+            browser_pool=self._browser_pool,
         )
 
     @property
@@ -69,6 +72,7 @@ class SessionManager:
                 browser=ZoeBrowser(
                     headless=self.headless,
                     navigation_timeout_ms=self.navigation_timeout_ms,
+                    browser_pool=self._browser_pool,
                 ),
                 created_at=now,
                 last_used_at=now,
@@ -111,6 +115,7 @@ class SessionManager:
             self._default_browser.close(),
             return_exceptions=True,
         )
+        await self._browser_pool.close()
 
     async def _expire_idle_unlocked(self) -> None:
         now = time.monotonic()
