@@ -3,7 +3,7 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog } = require("electron");
 const path = require("node:path");
 const http = require("node:http");
-const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval } = require("./security");
+const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, isPrivateHost, actionRequiresApproval } = require("./security");
 
 const TOOLBAR_HEIGHT = 104;
 const AI_PANEL_WIDTH = 350;
@@ -40,17 +40,6 @@ function layoutTabs() {
     tab.view.setBounds({ x:left, y:top, width:Math.max(0,width-right), height:Math.max(0,height-top) });
     tab.view.setVisible(tab.id === activeTabId);
   }
-}
-function isPrivateHost(hostname) {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "metadata.google.internal") return true;
-  if (host === "::1" || host === "::" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:")) return true;
-  const parts = host.split(".").map(Number);
-  if (parts.length === 4 && parts.every(n => Number.isInteger(n) && n >= 0 && n <= 255)) {
-    const [a,b] = parts;
-    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
-  }
-  return false;
 }
 function assertBrowserUrl(raw) {
   const url = normalizeUrl(raw);
@@ -160,7 +149,7 @@ async function performAction(action, {fromAI = false} = {}) {
       type: "warning",
       title: "Approve Zoe AI action",
       message: `Zoe AI wants to ${actionName} a potentially consequential control.`,
-      detail: `Website: ${hostname}\\nControl: ${target.name || "(unnamed control)"}\\n${action.type === "fill" ? "This field may contain sensitive information." : "This click may submit data or change something on the website."}\\n\\nApprove only if you recognize this action.`,
+      detail: `Website: ${hostname}\nControl: ${target.name || "(unnamed control)"}\n${action.type === "fill" ? "This field may contain sensitive information." : "This click may submit data or change something on the website."}\n\nApprove only if you recognize this action.`,
       buttons: ["Cancel", "Approve once"],
       defaultId: 0,
       cancelId: 0,
