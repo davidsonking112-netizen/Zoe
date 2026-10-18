@@ -97,7 +97,10 @@ curl -X POST http://127.0.0.1:8765/v1/browser/fill \
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/health` | Service health and browser-start state |
+| GET | `/health` | Service health and default-browser start state |
+| POST | `/v1/sessions` | Create an isolated browser session (returns a session ID) |
+| GET | `/v1/sessions` | List active session metadata |
+| DELETE | `/v1/sessions/{session_id}` | Close an isolated browser session |
 | POST | `/v1/browser/navigate` | Navigate to an allowed URL |
 | GET | `/v1/browser/inspect` | Return URL, title, visible text, and bounded interactive-element metadata |
 | POST | `/v1/browser/click` | Click a CSS selector |
