@@ -49,13 +49,13 @@ class BrowserPool:
             await self._stop_unlocked()
 
     async def _stop_unlocked(self) -> None:
-        if self._owns_browser and self._browser is not None:
+        if self._browser is not None:
             try:
                 await self._browser.close()
             except Exception:
                 pass
         self._browser = None
-        if self._owns_browser and self._playwright is not None:
+        if self._playwright is not None:
             try:
                 await self._playwright.stop()
             except Exception:
@@ -250,18 +250,18 @@ class ZoeBrowser:
             except Exception:
                 pass
             self._context = None
-        if self._browser is not None:
+        if self._owns_browser and self._browser is not None:
             try:
                 await self._browser.close()
             except Exception:
                 pass
-            self._browser = None
-        if self._playwright is not None:
+        self._browser = None
+        if self._owns_browser and self._playwright is not None:
             try:
                 await self._playwright.stop()
             except Exception:
                 pass
-            self._playwright = None
+        self._playwright = None
         self._page = None
 
     async def close(self) -> None:
