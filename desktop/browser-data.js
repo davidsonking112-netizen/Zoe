@@ -88,6 +88,11 @@ class BrowserDataStore {
     return before !== this.data.bookmarks.length;
   }
 
+  async clearHistory() {
+    this.data.history = [];
+    await this._persistQueued();
+  }
+
   getHistory(limit = 50) {
     const count = Number.isInteger(limit) ? Math.max(0, Math.min(limit, this.maxHistory)) : 50;
     return this.data.history.slice(0, count).map(entry => ({ ...entry }));
