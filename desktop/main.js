@@ -216,6 +216,9 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   view.webContents.on("page-title-updated", () => { void recordTabVisit(tab); emitState(); });
   view.webContents.on("did-start-loading", emitState);
   view.webContents.on("did-stop-loading", emitState);
+  view.webContents.on("found-in-page", (_event, result) => {
+    if (windowRef && !windowRef.isDestroyed()) windowRef.webContents.send("zoe:find-result", result);
+  });
   view.webContents.on("context-menu", (_event, params) => {
     const menuItems = [];
     if (params.linkURL) {
@@ -255,6 +258,9 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     } else if (modifier && key === "r") {
       event.preventDefault();
       view.webContents.reload();
+    } else if (modifier && key === "f") {
+      event.preventDefault();
+      windowRef.webContents.send("zoe:open-find");
     } else if (input.alt && input.key === "ArrowLeft" && view.webContents.navigationHistory.canGoBack()) {
       event.preventDefault();
       void view.webContents.navigationHistory.goBack();
@@ -449,6 +455,18 @@ function registerIpc() {
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { wc.reload(); return {success:true}; }));
+  ipcMain.handle("zoe:find", (_event, query, forward = true) => withActiveTab(wc => {
+    if (typeof query !== "string" || query.length > 500) throw new Error("Find text must be 500 characters or fewer.");
+    if (!query.trim()) {
+      wc.stopFindInPage("clearSelection");
+      return { success: true, cleared: true };
+    }
+    return wc.findInPage(query, { forward: forward !== false, findNext: true });
+  }));
+  ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => {
+    wc.stopFindInPage("clearSelection");
+    return { success: true };
+  }));
   ipcMain.handle("zoe:toggle-ai", () => { aiPanelVisible=!aiPanelVisible; layoutTabs(); emitState(); return aiPanelVisible; });
   ipcMain.handle("zoe:inspect", pageSnapshot);
   ipcMain.handle("zoe:action", (_e,action) => performAction(action));
