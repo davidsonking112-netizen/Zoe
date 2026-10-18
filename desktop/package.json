@@ -1,13 +1,14 @@
 {
   "name": "zoe-browser",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Zoe desktop browser with an integrated AI assistant",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js",
-    "test": "node --test"
+    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js",
+    "test": "node --test",
+    "smoke": "electron ."
   },
   "devDependencies": {
     "electron": "^38.0.0"
