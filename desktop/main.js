@@ -249,6 +249,7 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   });
   const tab = { id, view };
   tabs.set(id, tab);
+  view.webContents.once("destroyed", () => clearAIGuard(tab));
   windowRef.contentView.addChildView(view);
   view.webContents.setWindowOpenHandler(({ url: popupUrl }) => {
     if (tab.aiRestricted) {
@@ -335,6 +336,7 @@ async function createTab(rawUrl = "https://example.com", select = true) {
 function closeTab(id) {
   const tab = tabs.get(String(id));
   if (!tab) return { closed: false };
+  clearAIGuard(tab);
   windowRef.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
   tabs.delete(tab.id);
