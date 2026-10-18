@@ -275,7 +275,7 @@ app.whenReady().then(async()=>{
   if (process.env.ZOE_SMOKE_TEST === "1") {
     const server = http.createServer((_request, response) => {
       response.writeHead(200, {"content-type":"text/html; charset=utf-8"});
-      response.end('<!doctype html><title>Zoe smoke fixture</title><label>Query <input placeholder="Query"></label><button type="button" onclick="document.querySelector(\'#result\').textContent=\'Done: \'+document.querySelector(\'input\').value">Run</button><p id="result"></p>');
+      response.end('<!doctype html><title>Zoe smoke fixture</title><label>Query <input placeholder="Query"></label><button type="button" onclick="document.querySelector(\'#result\').textContent=\'Done: \'+document.querySelector(\'input\').value">Run</button><p id="result"></p><label>Password <input type="password" autocomplete="current-password" value="fixture-secret"></label>');
     });
     server.listen(0, "127.0.0.1", async () => {
       try {
@@ -283,6 +283,7 @@ app.whenReady().then(async()=>{
         await createTab(`http://127.0.0.1:${address.port}/`, true);
         const before = await pageSnapshot();
         if (before.title !== "Zoe smoke fixture") throw new Error("Electron browser did not load the fixture.");
+        if (JSON.stringify(before).includes("fixture-secret")) throw new Error("Browser inspection leaked a password field value to the AI context.");
         await performAction({type:"fill",index:0,expectedName:"Query",text:"zoe"});
         await performAction({type:"click",index:1,expectedName:"Run"});
         const after = await pageSnapshot();
