@@ -31,6 +31,7 @@
       <label>OpenAI-compatible endpoint<input id="endpoint" value="http://127.0.0.1:11434/v1/chat/completions"></label>
       <label>Model<input id="model" value="qwen3.5:9b"></label>
       <label>API key (kept in memory for this session)<input id="api-key" type="password" autocomplete="off" placeholder="Optional for local Ollama"></label>
+      <p class="privacy-note">When you ask Zoe to use AI, page text and the current URL may be sent to this endpoint. Sensitive URL parameters are redacted, but visible page text can still contain private information. Use a local model for local processing.</p>
       <button id="save-ai">Apply settings</button><span id="settings-status" class="subtle"></span>
     </details>
   </div>
