@@ -94,11 +94,6 @@ class BrowserDataStore {
     await this._persistQueued();
   }
 
-  async clearHistory() {
-    this.data.history = [];
-    await this._persistQueued();
-  }
-
   async saveSessionTabs(tabs) {
     if (!Array.isArray(tabs)) throw new TypeError("Session tabs must be an array.");
     this.data.sessionTabs = tabs.map(cleanEntry).filter(Boolean).slice(0, 20);
