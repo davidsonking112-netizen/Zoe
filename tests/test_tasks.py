@@ -18,7 +18,7 @@ class FakeBrowser:
         self.calls.append("navigate")
         self.url = url
         self.text = "Zoe test page"
-        return {"success": True, "url": url, "title": "Zoe", "http_status": 200}
+        return {"success": not url.endswith("/missing"), "url": url, "title": "Zoe", "http_status": 404 if url.endswith("/missing") else 200}
 
     async def inspect(self) -> dict[str, object]:
         self.calls.append("inspect")
@@ -103,3 +103,53 @@ def test_task_request_has_bounded_step_count_and_timeout() -> None:
 def test_task_step_rejects_unknown_action() -> None:
     with pytest.raises(ValidationError):
         TaskStep(action="execute_shell")
+
+
+def test_failed_navigation_is_a_failed_task_step() -> None:
+    async def exercise() -> None:
+        browser = FakeBrowser()
+        result = await run_task(
+            browser,
+            TaskRequest(steps=[
+                TaskStep(action="navigate", url="https://example.com/missing"),
+                TaskStep(action="inspect"),
+            ]),
+        )
+        assert result.success is False
+        assert result.stopped_at_step == 1
+        assert len(result.steps) == 1
+        assert "non-success HTTP status" in (result.steps[0].error or "")
+
+    asyncio.run(exercise())
+
+
+def test_semantic_fill_operation_is_explicit() -> None:
+    async def exercise() -> None:
+        browser = FakeBrowser()
+        result = await run_task(
+            browser,
+            TaskRequest(steps=[
+                TaskStep(
+                    action="semantic_action",
+                    operation="fill",
+                    strategy="label",
+                    value="Search",
+                    text="Zoe browser",
+                ),
+            ]),
+        )
+        assert result.success is True
+        assert browser.calls == ["semantic_action"]
+        assert result.steps[0].result["action"] == "fill"
+
+    asyncio.run(exercise())
+
+
+def test_semantic_fill_requires_input_text() -> None:
+    with pytest.raises(ValidationError):
+        TaskStep(
+            action="semantic_action",
+            operation="fill",
+            strategy="label",
+            value="Search",
+        )
