@@ -39,6 +39,7 @@
 - [x] Session-scoped prompts for supported website permissions; deny unknown permissions by default
 - [x] Deterministic OpenAI-compatible model/tool-call smoke test with a local fake model
 - [x] Windows/macOS/Linux installer configuration and tag-triggered release workflow
+- [x] Committed desktop npm lockfile; CI and release jobs use `npm ci`
 - [ ] Cross-platform package and installation validation on clean Windows, macOS, and Linux machines
 - [ ] Adversarial browser/AI security review, including redirects, DNS rebinding, malicious downloads, and prompt injection
 - [ ] Remote-model end-to-end evaluation across supported OpenAI-compatible providers
