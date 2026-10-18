@@ -85,3 +85,20 @@ test("clears and persists browsing history without removing bookmarks", async t 
   assert.equal(restored.getHistory().length, 0);
   assert.equal(restored.getBookmarks().length, 1);
 });
+
+
+test("open tabs persist across restarts with a hard cap", async t => {
+  const { directory, store } = await temporaryStore();
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const tabs = Array.from({ length: 24 }, (_, index) => ({
+    url: "https://example" + index + ".com/",
+    title: "Tab " + index
+  }));
+  const saved = await store.saveSessionTabs(tabs);
+  assert.equal(saved.length, 20);
+  assert.equal(saved[0].url, "https://example0.com/");
+  const restored = new BrowserDataStore(path.join(directory, "browser-data.json"));
+  await restored.load();
+  assert.equal(restored.getSessionTabs().length, 20);
+  assert.equal(restored.getSessionTabs()[19].title, "Tab 19");
+});
