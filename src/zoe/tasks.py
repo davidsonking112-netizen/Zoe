@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -14,6 +14,7 @@ class TaskStep(BaseModel):
     """One explicit browser operation; website content is never treated as instructions."""
 
     action: str = Field(min_length=1, max_length=32)
+    operation: Literal["click", "fill"] = "click"
     url: str | None = Field(default=None, max_length=2048)
     selector: str | None = Field(default=None, max_length=1000)
     text: str | None = Field(default=None, max_length=20_000)
@@ -45,12 +46,8 @@ class TaskStep(BaseModel):
             raise ValueError("Unsupported semantic locator strategy.")
         if self.action == "semantic_action" and self.strategy == "role" and not self.role:
             raise ValueError("role is required for semantic role actions.")
-        if self.action == "semantic_action" and self.text is None and self.strategy in {
-            "label", "placeholder", "test_id"
-        }:
-            # These strategies can click, but fill needs a value. Action type is
-            # deliberately explicit in a separate field to keep task steps simple.
-            pass
+        if self.action == "semantic_action" and self.operation == "fill" and self.text is None:
+            raise ValueError("text is required when a semantic action fills a field.")
         return self
 
 
@@ -90,6 +87,8 @@ async def run_task(browser: ZoeBrowser, request: TaskRequest) -> TaskResult:
                 result: dict[str, Any] | None
                 if step.action == "navigate":
                     result = await browser.navigate(step.url or "")
+                    if not result.get("success", False):
+                        raise RuntimeError("Navigation returned a non-success HTTP status.")
                 elif step.action == "inspect":
                     result = await browser.inspect()
                 elif step.action == "click":
@@ -98,7 +97,7 @@ async def run_task(browser: ZoeBrowser, request: TaskRequest) -> TaskResult:
                     result = await browser.fill(step.selector or "", step.text or "")
                 elif step.action == "semantic_action":
                     result = await browser.semantic_action(
-                        action="fill" if step.text is not None else "click",
+                        action=step.operation,
                         strategy=step.strategy or "",
                         value=step.value or "",
                         role=step.role,
@@ -162,6 +161,8 @@ def _safe_error(exc: Exception) -> str:
         return str(exc)
     if isinstance(exc, TimeoutError):
         return "Browser operation timed out."
+    if type(exc).__name__ == "UnsafeDestinationError":
+        return "Destination blocked by Zoe URL policy."
     if isinstance(exc, LookupError):
         return "The requested element or resource was not found."
     if isinstance(exc, ValueError):
