@@ -76,6 +76,30 @@ jobs:
       - name: Build platform installer
         working-directory: desktop
         run: npm run dist
+      - name: Smoke-test packaged Linux app
+        if: runner.os == 'Linux'
+        working-directory: desktop
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: timeout 90s xvfb-run -a ./dist/linux-unpacked/zoe --no-sandbox
+      - name: Smoke-test packaged Windows app
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        shell: pwsh
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: |
+          $app = Join-Path $PWD "dist/win-unpacked/Zoe.exe"
+          if (!(Test-Path $app)) { throw "Packaged Zoe executable was not found." }
+          $process = Start-Process -FilePath $app -PassThru
+          if (!$process.WaitForExit(90000)) { $process.Kill(); throw "Packaged Zoe smoke test timed out." }
+          if ($process.ExitCode -ne 0) { throw "Packaged Zoe exited with code $($process.ExitCode)." }
+      - name: Smoke-test packaged macOS app
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: python3 -c "import subprocess; subprocess.run(['dist/mac/Zoe.app/Contents/MacOS/Zoe'], timeout=90, check=True)"
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
