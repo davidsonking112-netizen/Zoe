@@ -27,9 +27,10 @@ test("allows secure external and local loopback model endpoints only",()=>{
 
 test("address bar opens URLs and searches ordinary text",()=>{
   assert.equal(resolveAddressInput("example.com"),"https://example.com/");
-  assert.equal(resolveAddressInput("localhost:3000"),"https://localhost:3000/");
+  assert.equal(resolveAddressInput("localhost:3000"),"http://localhost:3000/");
   assert.equal(resolveAddressInput("best coffee near me"),"https://www.google.com/search?q=best%20coffee%20near%20me");
   assert.equal(resolveAddressInput("cats"),"https://www.google.com/search?q=cats");
+  assert.equal(resolveAddressInput("127.0.0.1:8080"),"http://127.0.0.1:8080/");
   assert.equal(resolveAddressInput("https://example.com/a"),"https://example.com/a");
 });
 
