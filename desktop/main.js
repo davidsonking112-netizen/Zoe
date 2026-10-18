@@ -13,6 +13,7 @@ const AI_PANEL_WIDTH = 350;
 const MAX_TABS = 20;
 let windowRef;
 let browserData;
+let permissionDecisions = new Map();
 let sessionSaveTimer;
 let allowQuitAfterSave = false;
 let quitSaveStarted = false;
