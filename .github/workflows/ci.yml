@@ -26,5 +26,7 @@ jobs:
           python -m pip install -e ".[dev]"
       - name: Run lint
         run: ruff check .
+      - name: Install Firefox for Playwright
+        run: python -m playwright install --with-deps firefox
       - name: Run tests
         run: pytest --cov=zoe --cov-report=term-missing
