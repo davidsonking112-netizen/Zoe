@@ -7,7 +7,7 @@
 ## Product direction
 
 - **Agent-first:** structured browser operations instead of requiring an agent to reason over screenshots for every action.
-- **Observable:** return explicit outcomes and useful errors so an agent can verify what happened.
+- **Observable:** return explicit outcomes and useful errors so an agent can verify what happened; provide a local dashboard for human oversight.
 - **Engine-backed:** use Playwright's managed Firefox build instead of forking Firefox at the start.
 - **Safety-aware:** restrict navigation and subrequests to public HTTP(S) destinations and reject local/private-network targets.
 - **Incremental:** prove reliable browser operations and bounded task workflows before adding model integration, a dashboard, or advanced orchestration.
@@ -27,7 +27,7 @@
 - [x] Bounded sequential task execution API with per-step results, stop-on-error behavior, timeouts, and text/URL verification
 - [x] Semantic locator API with exact-match ambiguity checks
 - [ ] Agent adapter (model-provider agnostic)
-- [ ] Observer dashboard
+- [x] Local observer dashboard served by the API, with session selection, page screenshot, inspection, browser actions, task runner, and activity log
 - [ ] Permission policy and broader security evaluation
 - [ ] Benchmarks for reliability, latency, and memory
 
@@ -59,7 +59,7 @@ uvicorn zoe.api:app --host 127.0.0.1 --port 8765
 
 Keep the service bound to localhost. The initial API has **no authentication** and is intended only for local development.
 
-- Health: `http://127.0.0.1:8765/health`
+- Dashboard: `http://127.0.0.1:8765/`\n- Health: `http://127.0.0.1:8765/health`
 - API docs: `http://127.0.0.1:8765/docs`
 
 ### Example requests
