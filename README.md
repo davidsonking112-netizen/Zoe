@@ -1,16 +1,16 @@
 # Zoe
 
-**An AI-first browser environment.** Zoe is being built around a simple principle: agents should be able to operate websites through a reliable, inspectable, and safety-conscious interface, while a human can retain oversight.
+**Zoe is a normal desktop web browser with an integrated AI assistant.** It has familiar tabs, an address bar, navigation controls, and a real web page area. AI is a built-in feature that can understand the current page and use limited browser tools; Zoe is not a separate agent-only dashboard.
 
-> **Status: early foundation / experimental.** This repository currently provides an experimental backend milestone: a local FastAPI service, a Playwright-managed Firefox runtime, isolated browser sessions, semantic interactions, bounded task execution with verification steps, initial URL/network safeguards, and automated tests. It is not yet a production-ready browser or a secure multi-user service.
+> **Status: early alpha / experimental.** The repository now contains an Electron desktop-browser prototype with standard browser chrome and an integrated AI sidebar, plus a separate Playwright-based automation API and Python SDK. The desktop prototype is not yet production-ready; security, packaging, downloads/bookmarks/history, model compatibility, and end-to-end validation remain incomplete.
 
 ## Product direction
 
-- **Agent-first:** structured browser operations instead of requiring an agent to reason over screenshots for every action.
-- **Observable:** return explicit outcomes and useful errors so an agent can verify what happened; provide a local dashboard for human oversight.
-- **Engine-backed:** use Playwright's managed Firefox build instead of forking Firefox at the start.
-- **Safety-aware:** restrict navigation and subrequests to public HTTP(S) destinations and reject local/private-network targets.
-- **Incremental:** prove reliable browser operations and bounded task workflows before adding model integration, a dashboard, or advanced orchestration.
+- **Normal browser first:** browsing, tabs, address bar, back/forward, reload, and popup-to-tab behavior are first-class.
+- **AI integrated into the browser:** the assistant can inspect the active page and use bounded navigation, click, and fill tools.
+- **Separation of concerns:** Electron/Chromium provides the desktop browsing experience; the Python Playwright API remains an automation interface for external agents and tests.
+- **Safety-aware:** apply URL checks, isolate the renderer, expose a narrow preload bridge, and treat website text as untrusted input.
+- **Honest validation:** CI tests the Python API and desktop JavaScript/security helpers; a packaged, production-secure 1.0 still requires further testing and hardening.
 
 ## Current milestone
 
@@ -27,16 +27,33 @@
 - [x] Bounded sequential task execution API with per-step results, stop-on-error behavior, timeouts, and text/URL verification
 - [x] Semantic locator API with exact-match ambiguity checks
 - [x] Async Python client for provider-neutral agent integrations, session routing, task execution, and structured API errors
-- [ ] Agent adapter (model-provider agnostic)
-- [x] Local observer dashboard served by the API, with session selection, page screenshot, inspection, browser actions, task runner, and activity log
+- [x] Electron browser shell with tabs, address bar, back/forward, reload, popup-to-tab behavior, and AI sidebar
+- [x] OpenAI-compatible chat/tool-call adapter (local Ollama endpoint by default; compatible HTTPS endpoints supported)
+- [ ] Human approval flow for consequential AI actions
+- [ ] Desktop packaging, installer, bookmarks/history/downloads, and session persistence controls
 - [ ] Permission policy and broader security evaluation
 - [ ] Benchmarks for reliability, latency, and memory
 
 ## Requirements
 
-- Python 3.11+
-- Firefox browser binaries installed by Playwright
-- A supported operating system
+- Node.js 22+ and npm for the desktop app
+- Python 3.11+ for the automation API and SDK
+- Firefox browser binaries installed by Playwright for the automation API
+- A supported desktop operating system
+
+## Run the desktop browser (prototype)
+
+```bash
+cd desktop
+npm install
+npm start
+```
+
+The browser opens a normal tabbed window with an optional AI sidebar. The default model endpoint is a local Ollama OpenAI-compatible endpoint at `http://127.0.0.1:11434/v1/chat/completions`, using model `qwen3.5:9b`. Start Ollama and pull a compatible model first, or configure an HTTPS OpenAI-compatible endpoint in the AI settings. API keys are held in memory for the current app session and are not saved by the prototype. The AI integration is experimental; do not use it for sensitive accounts or consequential actions.
+
+## Run the automation API (developer / agent integration)
+
+The Python API is separate from the desktop browser and currently uses its own Playwright-managed Firefox runtime. It is useful for tests and external agent integrations; it is not the desktop browser UI.
 
 ## Local setup
 
@@ -60,7 +77,6 @@ uvicorn zoe.api:app --host 127.0.0.1 --port 8765
 
 Keep the service bound to localhost. The initial API has **no authentication** and is intended only for local development.
 
-- Dashboard: `http://127.0.0.1:8765/`
 - Health: `http://127.0.0.1:8765/health`
 - API docs: `http://127.0.0.1:8765/docs`
 
@@ -118,7 +134,7 @@ async def main():
 asyncio.run(main())
 ```
 
-The client closes sessions created through it when the client context exits. The browser API remains local-only and unauthenticated.
+The client closes sessions created through it when the client context exits. The automation API remains local-only and unauthenticated; do not expose it to a network.
 
 ## API overview
 
@@ -136,7 +152,7 @@ The client closes sessions created through it when the client context exits. The
 | POST | `/v1/tasks/run` | Execute up to 20 explicit steps with a bounded timeout and per-step results |
 | GET | `/v1/browser/screenshot` | Return a base64 PNG screenshot |
 
-Legacy requests without `X-Zoe-Session-ID` still use the default local browser page. For independent tasks, create a session with `POST /v1/sessions` and send its `session_id` in the `X-Zoe-Session-ID` header on browser requests. Sessions use separate Playwright/Firefox processes and contexts; this improves isolation but consumes more memory. The default cap is four active sessions, and sessions expire after 15 minutes of inactivity when the manager next processes a request. This API still has no authentication: bind it to localhost and do not expose it to untrusted users.
+Legacy requests without `X-Zoe-Session-ID` still use the default local browser page. For independent tasks, create a session with `POST /v1/sessions` and send its `session_id` in the `X-Zoe-Session-ID` header on browser requests. Sessions use isolated browser contexts in a shared Playwright/Firefox process. This reduces process overhead; concurrency and lifecycle behavior still need stress testing. The default cap is four active sessions, and sessions expire after 15 minutes of inactivity when the manager next processes a request. This API still has no authentication: bind it to localhost and do not expose it to untrusted users.
 
 ### Example: bounded task
 
