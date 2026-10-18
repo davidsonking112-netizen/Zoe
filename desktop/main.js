@@ -556,7 +556,19 @@ function createWindow() {
   });
   windowRef.loadFile(path.join(__dirname,"renderer","index.html"));
   windowRef.on("resize",layoutTabs);
-  windowRef.on("closed",()=>{windowRef=null;});
+  windowRef.on("close", () => {
+    if (process.env.ZOE_SMOKE_TEST !== "1") {
+      void persistOpenTabs().catch(error => console.error("Could not save session on window close:", error));
+    }
+  });
+  windowRef.on("closed", () => {
+    for (const tab of tabs.values()) {
+      try { tab.view.webContents.close(); } catch {}
+    }
+    tabs.clear();
+    activeTabId = null;
+    windowRef = null;
+  });
 }
 app.whenReady().then(async()=>{
   const dataPath = path.join(app.getPath("userData"), "browser-data.json");
@@ -727,7 +739,26 @@ app.whenReady().then(async()=>{
   } else {
     await createTab("https://www.google.com", true);
   }
-  app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0){createWindow();void createTab().catch(error=>console.error(error));}});
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length !== 0) return;
+    createWindow();
+    const savedTabs = browserData ? browserData.getSessionTabs() : [];
+    void (async () => {
+      if (savedTabs.length) {
+        for (const entry of savedTabs.slice(0, MAX_TABS)) {
+          try { await createTab(entry.url, false); }
+          catch (error) { console.error("Could not restore tab:", error.message || error); }
+        }
+        if (tabs.size) {
+          activeTabId = [...tabs.keys()].at(-1);
+          layoutTabs();
+          emitState();
+        }
+      } else {
+        await createTab("https://www.google.com", true);
+      }
+    })().catch(error => console.error("Could not reopen browser window:", error));
+  });
 });
 app.on("before-quit", event => {
   if (allowQuitAfterSave || process.env.ZOE_SMOKE_TEST === "1") return;
