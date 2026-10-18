@@ -757,7 +757,6 @@ app.whenReady().then(async()=>{
           privateRequestBlocked = true;
         } finally {
           clearAIGuard(guardedTab);
-          closeTab(guardedTab.id);
           if (tabs.has(originalTabId)) {
             activeTabId = originalTabId;
             layoutTabs();
@@ -765,6 +764,7 @@ app.whenReady().then(async()=>{
           }
         }
         if (!privateRequestBlocked) throw new Error("AI-controlled browser network guard allowed a loopback request.");
+        console.log("smoke: restored original tab after egress check");
         const restoredPage = await pageSnapshot();
         if (restoredPage.title !== "Zoe smoke fixture") throw new Error("The original page was not restored after the network-guard test.");
         console.log("smoke: AI network egress guard passed");
