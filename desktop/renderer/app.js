@@ -9,6 +9,8 @@ function appendMessage(text,role="assistant"){const node=document.createElement(
 window.zoe.onState(next=>{state=next;renderTabs();setPanel(state.aiPanelVisible);});
 window.zoe.onError(message=>toast(message,true));
 window.zoe.onFocusAddress(()=>{$("address").focus();$("address").select();});
+window.zoe.onOpenFind(()=>openFind());
+window.zoe.onFindResult(result=>{if(result.finalUpdate){$("find-count").textContent=result.matches===0?"No matches":`${result.activeMatchOrdinal} of ${result.matches}`;}});
 window.zoe.onNotice(message=>toast(message,false));
 window.zoe.onDownloadProgress(progress=>{const status=$("download-status");if(!status)return;if(progress.state!=="progressing"){status.textContent="";return;}const total=Number(progress.totalBytes)||0;const received=Number(progress.receivedBytes)||0;status.textContent=total>0?"Downloading "+Math.floor(received/total*100)+"%":"Downloading…";});
 window.zoe.getState().then(next=>{state=next;renderTabs();setPanel(state.aiPanelVisible);}).catch(e=>toast(e.message));
@@ -23,6 +25,39 @@ $("save-ai").addEventListener("click",async()=>{try{const result=await window.zo
 $("chat-form").addEventListener("submit",async e=>{e.preventDefault();const text=$("prompt").value.trim();if(!text)return;$("prompt").value="";appendMessage(text,"user");const pending=appendMessage("Thinking…");$("send").disabled=true;try{const result=await window.zoe.askAI(text);pending.remove();appendMessage(result.text||"Done.");if(result.page)appendMessage("Current page: "+result.page.title+"\n"+result.page.url,"tool");}catch(err){pending.remove();appendMessage("I couldn't complete that request: "+err.message); }finally{$("send").disabled=false;}});
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chat-form").requestSubmit();}});
 
+
+function openFind(){
+  $("find-bar").classList.remove("hidden");
+  $("find-query").focus();
+  $("find-query").select();
+}
+function closeFind(){
+  clearTimeout(findTimer);
+  $("find-bar").classList.add("hidden");
+  $("find-count").textContent="";
+  window.zoe.stopFind().catch(e=>toast(e.message));
+}
+let findTimer;
+async function searchInPage(forward=true,findNext=false){
+  const query=$("find-query").value;
+  if(!query.trim()){
+    $("find-count").textContent="";
+    await window.zoe.stopFind();
+    return;
+  }
+  try{await window.zoe.findInPage(query,forward,findNext);}catch(e){toast(e.message);}
+}
+$("find-query").addEventListener("input",()=>{
+  clearTimeout(findTimer);
+  findTimer=setTimeout(()=>searchInPage(true,false),120);
+});
+$("find-query").addEventListener("keydown",event=>{
+  if(event.key==="Escape"){event.preventDefault();closeFind();}
+  else if(event.key==="Enter"){event.preventDefault();void searchInPage(!event.shiftKey,true);}
+});
+$("find-prev").addEventListener("click",()=>searchInPage(false,true));
+$("find-next").addEventListener("click",()=>searchInPage(true,true));
+$("find-close").addEventListener("click",closeFind);
 
 document.addEventListener("keydown",event=>{
   const modifier=event.ctrlKey||event.metaKey;
@@ -41,5 +76,8 @@ document.addEventListener("keydown",event=>{
   }else if(key==="r"){
     event.preventDefault();
     window.zoe.reload().catch(e=>toast(e.message));
+  }else if(key==="f"){
+    event.preventDefault();
+    openFind();
   }
 });
