@@ -12,8 +12,8 @@ function isSensitiveElement(element) {
 
 function requiresHumanApproval(action, element) {
   if (!action || typeof action !== "object") return true;
-  if (action.type === "fill" && isSensitiveElement(element)) return true;
-  if (action.type !== "click") return false;
+  if (action.type === "fill") return isSensitiveElement(element);
+  if (action.type !== "click") return true;
   const label = String(element?.name || "");
   const type = String(element?.type || "").toLowerCase();
   const role = String(element?.role || "").toLowerCase();
