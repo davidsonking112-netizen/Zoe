@@ -33,7 +33,7 @@ class BrowserDataStore {
     this.filePath = filePath;
     this.maxHistory = maxHistory;
     this.maxBookmarks = maxBookmarks;
-    this.data = { version: 1, history: [], bookmarks: [] };
+    this.data = { version: 1, history: [], bookmarks: [], sessionTabs: [] };
     this._writeQueue = Promise.resolve();
   }
 
@@ -43,7 +43,8 @@ class BrowserDataStore {
       this.data = {
         version: 1,
         history: Array.isArray(raw.history) ? raw.history.map(cleanEntry).filter(Boolean).slice(0, this.maxHistory) : [],
-        bookmarks: Array.isArray(raw.bookmarks) ? raw.bookmarks.map(cleanEntry).filter(Boolean).slice(0, this.maxBookmarks) : []
+        bookmarks: Array.isArray(raw.bookmarks) ? raw.bookmarks.map(cleanEntry).filter(Boolean).slice(0, this.maxBookmarks) : [],
+        sessionTabs: Array.isArray(raw.sessionTabs) ? raw.sessionTabs.map(cleanEntry).filter(Boolean).slice(0, 20) : []
       };
     } catch (error) {
       if (error.code !== "ENOENT") throw new Error("Browser history/bookmark data could not be read safely.");
@@ -98,6 +99,17 @@ class BrowserDataStore {
     await this._persistQueued();
   }
 
+  async saveSessionTabs(tabs) {
+    if (!Array.isArray(tabs)) throw new TypeError("Session tabs must be an array.");
+    this.data.sessionTabs = tabs.map(cleanEntry).filter(Boolean).slice(0, 20);
+    await this._persistQueued();
+    return this.getSessionTabs();
+  }
+
+  getSessionTabs() {
+    return this.data.sessionTabs.map(entry => ({ ...entry }));
+  }
+
   getHistory(limit = 50) {
     const count = Number.isInteger(limit) ? Math.max(0, Math.min(limit, this.maxHistory)) : 50;
     return this.data.history.slice(0, count).map(entry => ({ ...entry }));
@@ -108,7 +120,7 @@ class BrowserDataStore {
   }
 
   snapshot() {
-    return { version: 1, history: this.getHistory(this.maxHistory), bookmarks: this.getBookmarks() };
+    return { version: 1, history: this.getHistory(this.maxHistory), bookmarks: this.getBookmarks(), sessionTabs: this.getSessionTabs() };
   }
 
   async _persistQueued() {
