@@ -56,7 +56,7 @@
 
 ```bash
 cd desktop
-npm install
+npm ci
 npm start
 ```
 
@@ -68,7 +68,7 @@ The browser opens a normal tabbed window with an optional AI sidebar. The defaul
 From `desktop/`:
 
 ```bash
-npm install
+npm ci
 npm run pack       # unpacked app, useful for CI validation
 npm run dist       # platform-native package for the current OS
 ```
