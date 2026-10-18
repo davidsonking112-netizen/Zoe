@@ -52,9 +52,7 @@
         "AppImage",
         "deb"
       ],
-      "maintainer": "Luminous Labs Intelligence",
-      "desktopName": "Zoe",
-      "syncDesktopName": true
+      "maintainer": "Luminous Labs Intelligence"
     },
     "nsis": {
       "oneClick": false,
