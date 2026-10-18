@@ -35,7 +35,7 @@ function activateAIGuard(tab) {
   aiGuardedWebContents.add(tab.view.webContents.id);
 }
 function clearAIGuard(tab) {
-  if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return;
+  if (!tab || !tab.view) return;
   tab.aiRestricted = false;
   aiGuardedWebContents.delete(tab.view.webContents.id);
 }
