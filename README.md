@@ -24,7 +24,8 @@
 - [x] Browser integration test against a deterministic local fixture server (navigation, inspection, fill, click, and visible page-state verification)
 - [x] Isolated browser sessions with a configurable active-session cap and idle expiry
 - [x] Session create/list/close API and `X-Zoe-Session-ID` routing
-- [x] Bounded sequential task execution API with per-step results, stop-on-error behavior, timeouts, and text/URL verification\n- [x] Semantic locator API with exact-match ambiguity checks
+- [x] Bounded sequential task execution API with per-step results, stop-on-error behavior, timeouts, and text/URL verification
+- [x] Semantic locator API with exact-match ambiguity checks
 - [ ] Agent adapter (model-provider agnostic)
 - [ ] Observer dashboard
 - [ ] Permission policy and broader security evaluation
@@ -104,12 +105,31 @@ curl -X POST http://127.0.0.1:8765/v1/browser/fill \
 | POST | `/v1/browser/navigate` | Navigate to an allowed URL |
 | GET | `/v1/browser/inspect` | Return URL, title, visible text, and bounded interactive-element metadata |
 | POST | `/v1/browser/click` | Click a CSS selector |
-| POST | `/v1/browser/fill` | Fill a field selected by CSS |\n| POST | `/v1/browser/action` | Click/fill using a semantic locator (role, label, text, placeholder, or test ID) |\n| POST | `/v1/tasks/run` | Execute up to 20 explicit steps with a bounded timeout and per-step results |
+| POST | `/v1/browser/fill` | Fill a field selected by CSS |
+| POST | `/v1/browser/action` | Click/fill using a semantic locator (role, label, text, placeholder, or test ID) |
+| POST | `/v1/tasks/run` | Execute up to 20 explicit steps with a bounded timeout and per-step results |
 | GET | `/v1/browser/screenshot` | Return a base64 PNG screenshot |
 
 Legacy requests without `X-Zoe-Session-ID` still use the default local browser page. For independent tasks, create a session with `POST /v1/sessions` and send its `session_id` in the `X-Zoe-Session-ID` header on browser requests. Sessions use separate Playwright/Firefox processes and contexts; this improves isolation but consumes more memory. The default cap is four active sessions, and sessions expire after 15 minutes of inactivity when the manager next processes a request. This API still has no authentication: bind it to localhost and do not expose it to untrusted users.
 
-### Example: bounded task\n\n`POST /v1/tasks/run` accepts a list of explicit operations. For example:\n\n```json\n{\n  "timeout_seconds": 30,\n  "steps": [\n    {"action": "navigate", "url": "https://example.com"},\n    {"action": "inspect"},\n    {"action": "verify_text", "expected": "Example Domain"}\n  ]\n}\n```\n\nSend `X-Zoe-Session-ID` to execute the task in an isolated session. Task requests are limited to 20 steps and 60 seconds. A task stops on the first failed step by default and reports which step failed. These are explicit scripted steps, not an autonomous planner or model integration.\n\n## Security notes and limitations
+### Example: bounded task
+
+`POST /v1/tasks/run` accepts a list of explicit operations. For example:
+
+```json
+{
+  "timeout_seconds": 30,
+  "steps": [
+    {"action": "navigate", "url": "https://example.com"},
+    {"action": "inspect"},
+    {"action": "verify_text", "expected": "Example Domain"}
+  ]
+}
+```
+
+Send `X-Zoe-Session-ID` to execute the task in an isolated session. Task requests are limited to 20 steps and 60 seconds. A task stops on the first failed step by default and reports which step failed. These are explicit scripted steps, not an autonomous planner or model integration.
+
+## Security notes and limitations
 
 The URL guard blocks non-HTTP(S) schemes, URL credentials, localhost, private/reserved IP addresses, and hostnames resolving to non-public IP addresses. Browser requests are checked as well as top-level navigation.
 
