@@ -2,7 +2,7 @@
 
 **An AI-first browser environment.** Zoe is being built around a simple principle: agents should be able to operate websites through a reliable, inspectable, and safety-conscious interface, while a human can retain oversight.
 
-> **Status: early foundation / experimental.** This repository currently provides the first backend milestone: a local FastAPI service, a Playwright-managed Firefox runtime, structured page inspection, basic interactions, initial URL/network safeguards, and tests. It is not yet a production-ready browser or a secure multi-user service.
+> **Status: early foundation / experimental.** This repository currently provides an experimental backend milestone: a local FastAPI service, a Playwright-managed Firefox runtime, isolated browser sessions, semantic interactions, bounded task execution with verification steps, initial URL/network safeguards, and automated tests. It is not yet a production-ready browser or a secure multi-user service.
 
 ## Product direction
 
@@ -10,7 +10,7 @@
 - **Observable:** return explicit outcomes and useful errors so an agent can verify what happened.
 - **Engine-backed:** use Playwright's managed Firefox build instead of forking Firefox at the start.
 - **Safety-aware:** restrict navigation and subrequests to public HTTP(S) destinations and reject local/private-network targets.
-- **Incremental:** prove the single-session browser workflow before adding an LLM, dashboard, concurrency, or advanced orchestration.
+- **Incremental:** prove reliable browser operations and bounded task workflows before adding model integration, a dashboard, or advanced orchestration.
 
 ## Current milestone
 
