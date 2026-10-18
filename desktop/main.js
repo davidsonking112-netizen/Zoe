@@ -610,6 +610,7 @@ function createWindow() {
   });
   windowRef.on("closed", () => {
     for (const tab of tabs.values()) {
+      clearAIGuard(tab);
       try { tab.view.webContents.close(); } catch {}
     }
     tabs.clear();
