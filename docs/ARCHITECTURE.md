@@ -10,7 +10,7 @@ Zoe is an agent-first browser environment, not a fork of Firefox. The initial im
 - `zoe.browser`: owns the Playwright lifecycle and browser operations.
 - `zoe.schemas`: defines the HTTP contract.
 - `zoe.api`: exposes a local FastAPI interface.
-- `tests/`: tests API behavior and URL policy.
+- `tests/`: tests API behavior and URL policy, plus an end-to-end Firefox workflow against a deterministic local fixture server. The integration test temporarily permits only its own loopback fixture URL through a monkeypatch; production policy remains unchanged.
 
 Keep browser mechanics separate from model-provider logic. The browser API must remain usable by different agents and models.
 
