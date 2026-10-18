@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu } = require("electron");
+const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu, clipboard } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -215,6 +215,53 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   view.webContents.on("page-title-updated", () => { void recordTabVisit(tab); emitState(); });
   view.webContents.on("did-start-loading", emitState);
   view.webContents.on("did-stop-loading", emitState);
+  view.webContents.on("context-menu", (_event, params) => {
+    const menuItems = [];
+    if (params.linkURL) {
+      menuItems.push(
+        { label: "Open Link in New Tab", click: () => { void createTab(params.linkURL, true).catch(error => reportNotice(error.message, true)); } },
+        { label: "Copy Link Address", click: () => clipboard.writeText(params.linkURL) },
+        { type: "separator" }
+      );
+    }
+    if (params.isEditable) {
+      menuItems.push(
+        { role: "undo" }, { role: "redo" }, { type: "separator" },
+        { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }
+      );
+    } else if (params.selectionText) {
+      menuItems.push({ role: "copy" }, { role: "selectAll" });
+    } else {
+      menuItems.push({ role: "back" }, { role: "forward" }, { role: "reload" }, { type: "separator" }, { role: "selectAll" });
+    }
+    if (menuItems.length && windowRef && !windowRef.isDestroyed()) {
+      Menu.buildFromTemplate(menuItems).popup({ window: windowRef });
+    }
+  });
+  view.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    const key = String(input.key || "").toLowerCase();
+    const modifier = input.control || input.meta;
+    if (modifier && key === "l") {
+      event.preventDefault();
+      windowRef.webContents.send("zoe:focus-address");
+    } else if (modifier && key === "t") {
+      event.preventDefault();
+      void createTab("https://www.google.com", true).catch(error => reportNotice(error.message, true));
+    } else if (modifier && key === "w") {
+      event.preventDefault();
+      closeTab(tab.id);
+    } else if (modifier && key === "r") {
+      event.preventDefault();
+      view.webContents.reload();
+    } else if (input.alt && input.key === "ArrowLeft" && view.webContents.navigationHistory.canGoBack()) {
+      event.preventDefault();
+      void view.webContents.navigationHistory.goBack();
+    } else if (input.alt && input.key === "ArrowRight" && view.webContents.navigationHistory.canGoForward()) {
+      event.preventDefault();
+      void view.webContents.navigationHistory.goForward();
+    }
+  });
   if (select) activeTabId = id;
   layoutTabs();
   await view.webContents.loadURL(url);
@@ -416,6 +463,38 @@ app.whenReady().then(async()=>{
   }
   rebuildApplicationMenu();
   const browserSession = session.fromPartition("persist:zoe-browser");
+  const permissionDecisions = new Map();
+  const permissionKey = (origin, permission) => origin + "|" + permission;
+  const promptablePermissions = new Set(["media", "geolocation", "notifications", "clipboard-read"]);
+  browserSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
+    return permissionDecisions.get(permissionKey(requestingOrigin, permission)) === true;
+  });
+  browserSession.setPermissionRequestHandler((requestingContents, permission, callback, details) => {
+    let origin = "";
+    try { origin = new URL(details?.requestingUrl || requestingContents.getURL()).origin; } catch { callback(false); return; }
+    if (!promptablePermissions.has(permission) || !windowRef || windowRef.isDestroyed()) {
+      callback(false);
+      return;
+    }
+    const key = permissionKey(origin, permission);
+    if (permissionDecisions.has(key)) {
+      callback(permissionDecisions.get(key));
+      return;
+    }
+    void dialog.showMessageBox(windowRef, {
+      type: "question",
+      title: "Website permission request",
+      message: origin + " requests " + permission.replace(/-/g, " ") + ".",
+      detail: "Only allow this if you trust the website. The decision applies to this Zoe app session.",
+      buttons: ["Deny", "Allow for this session"],
+      defaultId: 0,
+      cancelId: 0
+    }).then(result => {
+      const allowed = result.response === 1;
+      permissionDecisions.set(key, allowed);
+      callback(allowed);
+    }).catch(() => callback(false));
+  });
   browserSession.webRequest.onBeforeRequest((details,callback)=>{
     try {
       const url=new URL(details.url);
