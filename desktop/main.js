@@ -4,9 +4,8 @@ const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog, Menu, cli
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
-const { lookup } = require("node:dns/promises");
-const { isIP } = require("node:net");
-const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, isPrivateHost, actionRequiresApproval } = require("./security");
+
+const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, isPrivateHost, actionRequiresApproval, assertPublicHttpUrl } = require("./security");
 const { BrowserDataStore } = require("./browser-data");
 
 const TOOLBAR_HEIGHT = 104;
@@ -190,22 +189,9 @@ function assertBrowserUrl(raw) {
   return url;
 }
 async function assertSafeAIUrl(raw) {
-  const url = assertBrowserUrl(raw);
-  const hostname = new URL(url).hostname.replace(/^\[|\]$/g, "");
-  if (isPrivateHost(hostname)) throw new Error("For safety, AI navigation is limited to public HTTP(S) destinations.");
-  if (!isIP(hostname)) {
-    let addresses;
-    try {
-      addresses = await lookup(hostname, { all: true, verbatim: true });
-    } catch {
-      throw new Error("AI navigation was blocked because Zoe could not verify that the destination is public.");
-    }
-    if (!addresses.length || addresses.some(({ address }) => isPrivateHost(address))) {
-      throw new Error("AI navigation was blocked because the destination resolves to a private or reserved network.");
-    }
-  }
-  return url;
+  return assertPublicHttpUrl(raw);
 }
+
 async function createTab(rawUrl = "https://example.com", select = true) {
   if (tabs.size >= MAX_TABS) throw new Error(`Zoe supports at most ${MAX_TABS} open tabs.`);
   const url = assertBrowserUrl(rawUrl);
