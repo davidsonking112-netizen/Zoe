@@ -17,6 +17,13 @@
   </div>
   <nav id="tabs" class="tabs" aria-label="Browser tabs"></nav>
 </header>
+<div id="find-bar" class="find-bar hidden" role="search" aria-label="Find in page">
+  <input id="find-query" maxlength="500" placeholder="Find in page" aria-label="Find text">
+  <span id="find-count" class="subtle" aria-live="polite"></span>
+  <button id="find-prev" aria-label="Previous match" title="Previous match">↑</button>
+  <button id="find-next" aria-label="Next match" title="Next match">↓</button>
+  <button id="find-close" aria-label="Close find" title="Close find">×</button>
+</div>
 <aside id="assistant" class="assistant">
   <div class="assistant-head"><div><strong>✦ Zoe AI</strong><div class="subtle">Your browser assistant</div></div><button id="hide-ai" aria-label="Hide AI assistant">×</button></div>
   <div class="ai-settings">
