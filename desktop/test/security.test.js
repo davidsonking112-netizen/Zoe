@@ -74,3 +74,10 @@ test("consequential approval policy catches autocomplete and form metadata",()=>
   assert.equal(actionRequiresApproval({type:"click",href:"https://shop.example/checkout",name:"Continue"}),true);
   assert.equal(actionRequiresApproval({type:"inspect"}),true);
 });
+
+
+test("approval policy covers sensitive upload and scheduling fields",()=>{
+  assert.equal(actionRequiresApproval({type:"fill",inputType:"file"}),true);
+  assert.equal(actionRequiresApproval({type:"fill",inputType:"datetime-local"}),true);
+  assert.equal(actionRequiresApproval({type:"click",name:"Save changes",role:"button"}),true);
+});
