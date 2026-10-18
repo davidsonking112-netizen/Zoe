@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   lockfile:
-    if: ${{ !hashFiles('desktop/package-lock.json') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out feature branch
@@ -22,6 +21,7 @@ jobs:
         with:
           node-version: "22"
       - name: Generate reproducible npm lockfile
+        if: ${{ !hashFiles('desktop/package-lock.json') }}
         working-directory: desktop
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Commit lockfile once
