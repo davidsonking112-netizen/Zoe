@@ -742,6 +742,7 @@ app.whenReady().then(async()=>{
           throw new Error("Find-in-page failed to find and select visible text.");
         }
         console.log("smoke: find-in-page passed");
+        const originalTabId = activeTabId;
         const guardedSummary = await createTab(`http://127.0.0.1:${address.port}/guard-test`, true);
         const guardedTab = tabs.get(String(guardedSummary.id));
         if (!guardedTab || !guardedTab.view) throw new Error("The network-guard smoke test did not create a usable tab.");
@@ -754,8 +755,15 @@ app.whenReady().then(async()=>{
         } finally {
           clearAIGuard(guardedTab);
           closeTab(guardedTab.id);
+          if (tabs.has(originalTabId)) {
+            activeTabId = originalTabId;
+            layoutTabs();
+            emitState();
+          }
         }
         if (!privateRequestBlocked) throw new Error("AI-controlled browser network guard allowed a loopback request.");
+        const restoredPage = await pageSnapshot();
+        if (restoredPage.title !== "Zoe smoke fixture") throw new Error("The original page was not restored after the network-guard test.");
         console.log("smoke: AI network egress guard passed");
         let modelCalls = 0;
         modelServer = http.createServer((request, response) => {
