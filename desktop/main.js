@@ -5,7 +5,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
 
-const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval, assertPublicHttpUrl, redactSensitiveUrl } = require("./security");
+const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval, assertPublicHttpUrl, redactSensitiveUrl, allocateDownloadPath } = require("./security");
 const { BrowserDataStore } = require("./browser-data");
 
 const TOOLBAR_HEIGHT = 104;
@@ -404,7 +404,7 @@ async function findPageText(webContents, query, forward = true, findNext = false
 async function performAction(action) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
-    const url = await assertSafeAIUrl(resolveAddressInput(action.url));
+    const url = await assertPublicHttpUrl(resolveAddressInput(action.url));
     return withActiveTab(async wc => { await wc.loadURL(url); return {success:true,url:redactSensitiveUrl(wc.getURL())}; });
   }
   if (action.type === "inspect") return pageSnapshot();
@@ -415,7 +415,7 @@ async function performAction(action) {
   if (!target) throw new Error("The selected page element no longer exists. Inspect the page again.");
   if (action.expectedName && target.name !== action.expectedName) throw new Error("The element changed since it was inspected. Inspect the page again.");
   if (target.disabled) throw new Error("That element is disabled.");
-  if (action.type === "click" && target.href) await assertSafeAIUrl(new URL(target.href, snapshot.url).href);
+  if (action.type === "click" && target.href) await assertPublicHttpUrl(new URL(target.href, snapshot.url).href);
   if (actionRequiresApproval({
     type: action.type,
     name: target.name,
