@@ -302,7 +302,6 @@ function closeTab(id) {
   windowRef.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
   tabs.delete(tab.id);
-  findStates.delete(tab.view.webContents.id);
   scheduleSessionSave();
   if (activeTabId === tab.id) activeTabId = tabs.size ? [...tabs.keys()].at(-1) : null;
   if (!tabs.size) void createTab("https://www.google.com").catch(error => windowRef.webContents.send("zoe:error", error.message));
