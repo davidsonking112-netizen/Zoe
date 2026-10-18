@@ -21,7 +21,7 @@
 - [x] Initial URL and request destination validation
 - [x] Unit tests and CI workflow
 - [x] Firefox runtime smoke test in CI
-- [ ] Browser integration tests against a local fixture server
+- [x] Browser integration test against a deterministic local fixture server (navigation, inspection, fill, click, and visible page-state verification)
 - [ ] Session isolation and multi-task lifecycle
 - [ ] Agent adapter (model-provider agnostic)
 - [ ] Observer dashboard
