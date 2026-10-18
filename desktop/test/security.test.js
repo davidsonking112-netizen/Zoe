@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl,assertSafeAIUrl}=require("../security");
+const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl,assertSafeAIUrl,sanitizeDownloadFilename,allocateDownloadPath}=require("../security");
 
 test("normalizes domain searches and URLs",()=>{
   assert.equal(normalizeUrl("example.com"),"https://example.com/");
@@ -127,4 +127,24 @@ test("AI URL guard accepts only verifiably public DNS answers", async () => {
   };
   assert.equal(await assertSafeAIUrl("https://example.test", lookupPublic), "https://example.test/");
   await assert.rejects(assertSafeAIUrl("https://example.test", async () => { throw new Error("DNS unavailable"); }), /could not verify/);
+});
+
+
+test("download filenames cannot escape the Downloads directory", () => {
+  assert.equal(sanitizeDownloadFilename("../../secret.txt"), "secret.txt");
+  assert.equal(sanitizeDownloadFilename(".."), "download");
+  const windowsStyle = sanitizeDownloadFilename("C:\\Users\\evil?.exe");
+  assert.equal(windowsStyle.includes("/"), false);
+  assert.equal(windowsStyle.includes("\\"), false);
+});
+
+test("download path allocation avoids existing and concurrently reserved filenames", () => {
+  const reserved = new Set();
+  const existing = new Set(["/tmp/zoe-downloads/report.pdf"]);
+  const exists = filename => existing.has(filename);
+  const first = allocateDownloadPath("/tmp/zoe-downloads", "report.pdf", exists, reserved);
+  const second = allocateDownloadPath("/tmp/zoe-downloads", "report.pdf", exists, reserved);
+  assert.equal(first.filename, "report.pdf");
+  assert.equal(first.destination, "/tmp/zoe-downloads/report (1).pdf");
+  assert.equal(second.destination, "/tmp/zoe-downloads/report (2).pdf");
 });
