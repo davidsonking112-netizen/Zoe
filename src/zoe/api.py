@@ -9,7 +9,11 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from zoe import __version__
-from zoe.browser import BrowserNotStartedError
+from zoe.browser import (
+    AmbiguousLocatorError,
+    BrowserNotStartedError,
+    LocatorNotFoundError,
+)
 from zoe.schemas import (
     CloseSessionResult,
     CreateSessionResult,
@@ -18,6 +22,7 @@ from zoe.schemas import (
     NavigateRequest,
     NavigationResult,
     SelectorRequest,
+    SemanticActionRequest,
     SessionListResult,
 )
 from zoe.security import UnsafeDestinationError
@@ -53,6 +58,10 @@ async def _browser(session_id: str | None = None):
 def _raise_browser_error(exc: Exception) -> None:
     if isinstance(exc, UnsafeDestinationError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if isinstance(exc, LocatorNotFoundError):
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, AmbiguousLocatorError):
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if isinstance(exc, BrowserNotStartedError):
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if isinstance(exc, PlaywrightTimeoutError):
@@ -152,6 +161,27 @@ async def fill(
     try:
         browser = await _browser(x_zoe_session_id)
         return await browser.fill(request.selector, request.text)
+    except Exception as exc:
+        _raise_browser_error(exc)
+        raise
+
+
+@app.post("/v1/browser/action", tags=["browser"])
+async def semantic_action(
+    request: SemanticActionRequest,
+    x_zoe_session_id: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Run a click/fill using an accessible or otherwise semantic locator."""
+    try:
+        browser = await _browser(x_zoe_session_id)
+        return await browser.semantic_action(
+            action=request.action,
+            strategy=request.strategy,
+            value=request.value,
+            role=request.role,
+            text=request.text,
+            exact=request.exact,
+        )
     except Exception as exc:
         _raise_browser_error(exc)
         raise
