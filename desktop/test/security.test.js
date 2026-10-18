@@ -47,3 +47,13 @@ test("classifies consequential clicks and sensitive fills for human approval",()
   assert.equal(actionRequiresApproval({type:"fill",name:"Account password",inputType:"password"}),true);
   assert.equal(actionRequiresApproval({type:"fill",name:"Search",inputType:"text"}),false);
 });
+
+
+test("approval policy covers form submits, sensitive autocomplete, and consequential destinations",()=>{
+  assert.equal(actionRequiresApproval({type:"click",name:"Continue",elementType:"submit"}),true);
+  assert.equal(actionRequiresApproval({type:"click",name:"Continue",href:"https://shop.example/checkout"}),true);
+  assert.equal(actionRequiresApproval({type:"click",name:"Proceed",formSubmit:true}),true);
+  assert.equal(actionRequiresApproval({type:"fill",name:"Card details",inputType:"text",autocomplete:"cc-number"}),true);
+  assert.equal(actionRequiresApproval({type:"fill",name:"Search",inputType:"text",autocomplete:"off"}),false);
+  assert.equal(actionRequiresApproval({type:"unknown"}),true);
+});
