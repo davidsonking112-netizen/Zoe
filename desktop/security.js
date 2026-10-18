@@ -25,6 +25,9 @@ function resolveAddressInput(raw) {
   if (!hostLike || /\s/.test(value)) {
     return "https://www.google.com/search?q=" + encodeURIComponent(value);
   }
+  if (/^(?:localhost|127(?:\.\d{1,3}){3}|0(?:\.\d{1,3}){3}|\[::1\])(?::\d{1,5})?(?:[/?#]\S*)?$/i.test(value)) {
+    return new URL("http://" + value).href;
+  }
   return normalizeUrl(value);
 }
 
