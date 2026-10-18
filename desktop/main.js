@@ -32,7 +32,7 @@ function reportNotice(message, error = false) {
 async function recordTabVisit(tab) {
   if (!browserData || !tab || tab.view.webContents.isDestroyed()) return;
   const url = tab.view.webContents.getURL();
-  if (!/^https?:\\/\\//i.test(url)) return;
+  if (!/^https?:\/\//i.test(url)) return;
   try {
     await browserData.recordVisit({ url, title: tab.view.webContents.getTitle() || url });
     rebuildApplicationMenu();
@@ -71,14 +71,14 @@ function rebuildApplicationMenu() {
   const bookmarks = browserData ? browserData.getBookmarks() : [];
   const historyItems = history.length
     ? history.map(entry => ({
-        label: (entry.title || entry.url).replace(/\\s+/g, " ").slice(0, 72),
+        label: (entry.title || entry.url).replace(/\s+/g, " ").slice(0, 72),
         toolTip: entry.url,
         click: () => void openStoredUrl(entry.url)
       }))
     : [{ label: "No browsing history yet", enabled: false }];
   const bookmarkItems = bookmarks.length
     ? bookmarks.map(entry => ({
-        label: (entry.title || entry.url).replace(/\\s+/g, " ").slice(0, 72),
+        label: (entry.title || entry.url).replace(/\s+/g, " ").slice(0, 72),
         toolTip: entry.url,
         submenu: [
           { label: "Open", click: () => void openStoredUrl(entry.url) },
@@ -142,7 +142,7 @@ function assertBrowserUrl(raw) {
 }
 async function assertSafeAIUrl(raw) {
   const url = assertBrowserUrl(raw);
-  const hostname = new URL(url).hostname.replace(/^\\[|\\]$/g, "");
+  const hostname = new URL(url).hostname.replace(/^\[|\]$/g, "");
   if (isPrivateHost(hostname)) throw new Error("For safety, AI navigation is limited to public HTTP(S) destinations.");
   if (!isIP(hostname)) {
     let addresses;
@@ -399,7 +399,7 @@ app.whenReady().then(async()=>{
   browserSession.on("will-download", (_event, item) => {
     const downloadsDirectory = app.getPath("downloads");
     fs.mkdirSync(downloadsDirectory, { recursive: true });
-    const requestedName = path.basename(item.getFilename()).replace(/[<>:"/\\\\|?*\\x00-\\x1f]/g, "_") || "download";
+    const requestedName = path.basename(item.getFilename()).replace(/[<>:"\/\\|?*\x00-\x1f]/g, "_") || "download";
     const parsedName = path.parse(requestedName);
     let destination = path.join(downloadsDirectory, requestedName);
     let suffix = 1;
