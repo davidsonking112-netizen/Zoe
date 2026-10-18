@@ -836,15 +836,18 @@ app.whenReady().then(async()=>{
           throw new Error("Zoe performed a consequential action without approval.");
         }
         console.log("smoke: model tool-call loop, privacy boundary, and denied consequential action passed");
-        await new Promise(resolve => modelServer.close(resolve));
-        server.close(() => app.exit(0));
+        modelServer.closeAllConnections?.();
+        modelServer.close();
+        server.close();
+        app.exit(0);
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
         if (modelServer && modelServer.listening) {
           modelServer.closeAllConnections?.();
           modelServer.close();
         }
-        server.close(() => app.exit(1));
+        server.close();
+        app.exit(1);
       }
     });
     return;
