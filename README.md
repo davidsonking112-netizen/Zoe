@@ -7,10 +7,10 @@
 ## Product direction
 
 - **Normal browser first:** browsing, tabs, address bar, back/forward, reload, and popup-to-tab behavior are first-class.
-- **AI integrated into the browser:** the assistant can inspect the active page and use bounded navigation, click, and fill tools.
+- **AI integrated into the browser:** the assistant can inspect the active page and use bounded navigation, click, and fill tools. Consequential clicks and sensitive credential fields trigger a native approval dialog; the classifier is a safety layer, not a guarantee.
 - **Separation of concerns:** Electron/Chromium provides the desktop browsing experience; the Python Playwright API remains an automation interface for external agents and tests.
 - **Safety-aware:** apply URL checks, isolate the renderer, expose a narrow preload bridge, and treat website text as untrusted input.
-- **Honest validation:** CI tests the Python API and desktop JavaScript/security helpers; a packaged, production-secure 1.0 still requires further testing and hardening.
+- **Honest validation:** CI checks JavaScript, browser-data/security tests, a real Electron fixture workflow, a package build, and the Python API. Passing CI is necessary but does not replace cross-platform install tests, a security review, or live-model reliability evaluation.
 
 ## Current milestone
 
@@ -29,10 +29,19 @@
 - [x] Async Python client for provider-neutral agent integrations, session routing, task execution, and structured API errors
 - [x] Electron browser shell with tabs, address bar, back/forward, reload, popup-to-tab behavior, and AI sidebar
 - [x] OpenAI-compatible chat/tool-call adapter (local Ollama endpoint by default; compatible HTTPS endpoints supported)
-- [ ] Human approval flow for consequential AI actions
-- [ ] Desktop packaging, installer, bookmarks/history/downloads, and session persistence controls
-- [ ] Permission policy and broader security evaluation
-- [ ] Benchmarks for reliability, latency, and memory
+- [x] Native approval dialog for detected consequential AI clicks and sensitive field fills
+- [x] Persistent, bounded bookmarks and browsing history with URL validation
+- [x] Download handling with collision-safe filenames and progress/completion notices
+- [x] Confirmed clear-browsing-data action (history, cookies, site storage, and cache; bookmarks retained)
+- [x] Native browser context menus and common keyboard shortcuts (Ctrl/Cmd+L, T, W, R, F)
+- [x] Find-in-page controls and real Electron smoke coverage
+- [x] Session-scoped prompts for supported website permissions; deny unknown permissions by default
+- [x] Windows/macOS/Linux installer configuration and tag-triggered release workflow
+- [ ] Cross-platform package and installation validation on clean Windows, macOS, and Linux machines
+- [ ] Adversarial browser/AI security review, including redirects, DNS rebinding, malicious downloads, and prompt injection
+- [ ] Remote-model end-to-end evaluation across supported OpenAI-compatible providers
+- [ ] Reliability, latency, memory, and multi-tab benchmarks
+- [ ] Release signing/notarization and a documented 1.0 rollback/support process
 
 ## Requirements
 
@@ -66,7 +75,7 @@ Tagged releases (`v*`) use `.github/workflows/release.yml` to build Linux, Windo
 
 ## Run the automation API (developer / agent integration)
 
-The Python API is separate from the desktop browser and currently uses its own Playwright-managed Firefox runtime. It is useful for tests and external agent integrations; it is not the desktop browser UI.
+The Python API is separate from the desktop browser and uses its own Playwright-managed Firefox runtime. It is useful for tests and external agent integrations; it is not the desktop UI and is not a special dashboard. It has no authentication and must remain bound to localhost.
 
 ## Local setup
 
@@ -199,3 +208,19 @@ ruff check .
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design boundaries and next steps.
+
+
+## Zoe 1.0 release gate
+
+Do not call Zoe 1.0 complete until all of these are true:
+
+- [ ] CI is green on the final release candidate, including the actual Electron browser smoke test and Python suite.
+- [ ] Linux, Windows, and macOS installers build successfully and install/uninstall cleanly on clean machines.
+- [ ] Core browser workflows pass end-to-end tests: search/address navigation, tabs, back/forward, reload, find, context menus, bookmarks/history, downloads, permission prompts, and clearing browsing data.
+- [ ] AI workflows are tested with a real supported model: inspect a page, answer with evidence from the page, navigate, fill a safe field, verify a result, and request approval for consequential actions.
+- [ ] Adversarial tests cover prompt injection, redirects, private-network destinations, unsafe schemes, malicious/ambiguous controls, and download-path attacks.
+- [ ] API and desktop security boundaries are reviewed; remaining limitations are documented and accepted.
+- [ ] Memory, startup time, tab count, and AI-task reliability have measured baselines.
+- [ ] Release artifacts, versioning, signing/notarization status, known issues, and rollback steps are documented.
+
+A passing unit suite or a successful package build alone does not satisfy the 1.0 gate.
