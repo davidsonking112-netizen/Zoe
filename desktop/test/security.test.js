@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl,assertSafeAIUrl,sanitizeDownloadFilename,allocateDownloadPath}=require("../security");
+const {normalizeUrl,resolveAddressInput,isAllowedNavigation,isAllowedModelEndpoint,isPrivateHost,actionRequiresApproval,assertPublicHttpUrl,sanitizeDownloadFilename,allocateDownloadPath}=require("../security");
 
 test("normalizes domain searches and URLs",()=>{
   assert.equal(normalizeUrl("example.com"),"https://example.com/");
@@ -107,9 +107,9 @@ test("AI public-destination validation rejects private DNS answers and permits p
 });
 
 test("AI URL guard rejects private literal addresses before navigation", async () => {
-  await assert.rejects(assertSafeAIUrl("http://127.0.0.1:8080"), /public HTTP/);
-  await assert.rejects(assertSafeAIUrl("http://[::1]:8080"), /public HTTP/);
-  assert.equal(await assertSafeAIUrl("https://8.8.8.8"), "https://8.8.8.8/");
+  await assert.rejects(assertPublicHttpUrl("http://127.0.0.1:8080"), /public HTTP/);
+  await assert.rejects(assertPublicHttpUrl("http://[::1]:8080"), /public HTTP/);
+  assert.equal(await assertPublicHttpUrl("https://8.8.8.8"), "https://8.8.8.8/");
 });
 
 test("AI URL guard rejects DNS answers that include private or reserved IPs", async () => {
@@ -117,7 +117,7 @@ test("AI URL guard rejects DNS answers that include private or reserved IPs", as
     { address: "93.184.216.34", family: 4 },
     { address: "10.0.0.5", family: 4 }
   ];
-  await assert.rejects(assertSafeAIUrl("https://example.test", lookupMixed), /private or reserved/);
+  await assert.rejects(assertPublicHttpUrl("https://example.test", lookupMixed), /private or reserved/);
 });
 
 test("AI URL guard accepts only verifiably public DNS answers", async () => {
@@ -125,8 +125,8 @@ test("AI URL guard accepts only verifiably public DNS answers", async () => {
     assert.equal(hostname, "example.test");
     return [{ address: "93.184.216.34", family: 4 }];
   };
-  assert.equal(await assertSafeAIUrl("https://example.test", lookupPublic), "https://example.test/");
-  await assert.rejects(assertSafeAIUrl("https://example.test", async () => { throw new Error("DNS unavailable"); }), /could not verify/);
+  assert.equal(await assertPublicHttpUrl("https://example.test", lookupPublic), "https://example.test/");
+  await assert.rejects(assertPublicHttpUrl("https://example.test", async () => { throw new Error("DNS unavailable"); }), /could not verify/);
 });
 
 
