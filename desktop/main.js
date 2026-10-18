@@ -3,6 +3,8 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, session, dialog } = require("electron");
 const path = require("node:path");
 const http = require("node:http");
+const { lookup } = require("node:dns/promises");
+const { isIP } = require("node:net");
 const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, isPrivateHost, actionRequiresApproval } = require("./security");
 
 const TOOLBAR_HEIGHT = 104;
@@ -41,9 +43,21 @@ function assertBrowserUrl(raw) {
   if (!isAllowedNavigation(url)) throw new Error("Zoe only opens HTTP(S) websites.");
   return url;
 }
-function assertSafeAIUrl(raw) {
+async function assertSafeAIUrl(raw) {
   const url = assertBrowserUrl(raw);
-  if (isPrivateHost(new URL(url).hostname)) throw new Error("For safety, AI navigation is limited to public HTTP(S) destinations.");
+  const hostname = new URL(url).hostname.replace(/^\\[|\\]$/g, "");
+  if (isPrivateHost(hostname)) throw new Error("For safety, AI navigation is limited to public HTTP(S) destinations.");
+  if (!isIP(hostname)) {
+    let addresses;
+    try {
+      addresses = await lookup(hostname, { all: true, verbatim: true });
+    } catch {
+      throw new Error("AI navigation was blocked because Zoe could not verify that the destination is public.");
+    }
+    if (!addresses.length || addresses.some(({ address }) => isPrivateHost(address))) {
+      throw new Error("AI navigation was blocked because the destination resolves to a private or reserved network.");
+    }
+  }
   return url;
 }
 async function createTab(rawUrl = "https://example.com", select = true) {
@@ -115,7 +129,7 @@ async function pageSnapshot() {
 async function performAction(action, {fromAI = false} = {}) {
   if (!action || typeof action !== "object") throw new Error("Invalid action.");
   if (action.type === "navigate") {
-    const url = assertSafeAIUrl(resolveAddressInput(action.url));
+    const url = await assertSafeAIUrl(resolveAddressInput(action.url));
     return withActiveTab(async wc => { await wc.loadURL(url); return {success:true,url:wc.getURL()}; });
   }
   if (action.type === "inspect") return pageSnapshot();
@@ -126,7 +140,7 @@ async function performAction(action, {fromAI = false} = {}) {
   if (!target) throw new Error("The selected page element no longer exists. Inspect the page again.");
   if (action.expectedName && target.name !== action.expectedName) throw new Error("The element changed since it was inspected. Inspect the page again.");
   if (target.disabled) throw new Error("That element is disabled.");
-  if (action.type === "click" && target.href) assertSafeAIUrl(new URL(target.href, snapshot.url).href);
+  if (action.type === "click" && target.href) await assertSafeAIUrl(new URL(target.href, snapshot.url).href);
   if (fromAI && actionRequiresApproval({
     type: action.type,
     name: target.name,
