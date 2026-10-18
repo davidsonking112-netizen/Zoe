@@ -27,6 +27,7 @@ from zoe.schemas import (
 )
 from zoe.security import UnsafeDestinationError
 from zoe.sessions import SessionLimitError, SessionManager, SessionNotFoundError
+from zoe.tasks import TaskRequest, TaskResult, run_task
 
 
 @asynccontextmanager
@@ -194,6 +195,20 @@ async def screenshot(
     try:
         browser = await _browser(x_zoe_session_id)
         return await browser.screenshot()
+    except Exception as exc:
+        _raise_browser_error(exc)
+        raise
+
+
+@app.post("/v1/tasks/run", response_model=TaskResult, tags=["tasks"])
+async def execute_task(
+    request: TaskRequest,
+    x_zoe_session_id: str | None = Header(default=None),
+) -> TaskResult:
+    """Execute a bounded, explicit sequence of browser actions."""
+    try:
+        browser = await _browser(x_zoe_session_id)
+        return await run_task(browser, request)
     except Exception as exc:
         _raise_browser_error(exc)
         raise
