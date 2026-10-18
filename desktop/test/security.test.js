@@ -59,3 +59,18 @@ test("approval policy covers form submits, sensitive autocomplete, and consequen
   assert.equal(actionRequiresApproval({type:"fill",name:"Search",inputType:"text",autocomplete:"off"}),false);
   assert.equal(actionRequiresApproval({type:"unknown"}),true);
 });
+
+
+test("blocks special-purpose IPv4 ranges from AI navigation",()=>{
+  for(const host of ["100.64.0.1","100.127.255.254","192.0.0.1","192.0.2.1","192.88.99.1","198.18.0.1","198.19.255.254","198.51.100.1","203.0.113.1","240.0.0.1"]) {
+    assert.equal(isPrivateHost(host),true,host);
+  }
+});
+
+test("consequential approval policy catches autocomplete and form metadata",()=>{
+  assert.equal(actionRequiresApproval({type:"fill",inputType:"text",autocomplete:"cc-number"}),true);
+  assert.equal(actionRequiresApproval({type:"fill",inputType:"text",autocomplete:"one-time-code"}),true);
+  assert.equal(actionRequiresApproval({type:"click",formSubmit:true,name:"Continue"}),true);
+  assert.equal(actionRequiresApproval({type:"click",href:"https://shop.example/checkout",name:"Continue"}),true);
+  assert.equal(actionRequiresApproval({type:"inspect"}),true);
+});
