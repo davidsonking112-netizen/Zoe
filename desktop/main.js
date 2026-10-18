@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, WebContentsView, ipcMain, session } = require("electron");
 const path = require("node:path");
+const http = require("node:http");
 const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl } = require("./security");
 
 const TOOLBAR_HEIGHT = 104;
@@ -252,7 +253,30 @@ app.whenReady().then(async()=>{
     } catch { callback({cancel:true}); }
   });
   registerIpc(); createWindow();
+  if (process.env.ZOE_SMOKE_TEST === "1") {
+    const server = http.createServer((_request, response) => {
+      response.writeHead(200, {"content-type":"text/html; charset=utf-8"});
+      response.end('<!doctype html><title>Zoe smoke fixture</title><label>Query <input placeholder="Query"></label><button type="button" onclick="document.querySelector(\'#result\').textContent=\'Done: \'+document.querySelector(\'input\').value">Run</button><p id="result"></p>');
+    });
+    server.listen(0, "127.0.0.1", async () => {
+      try {
+        const address = server.address();
+        await createTab(`http://127.0.0.1:${address.port}/`, true);
+        const before = await pageSnapshot();
+        if (before.title !== "Zoe smoke fixture") throw new Error("Electron browser did not load the fixture.");
+        await performAction({type:"fill",index:0,expectedName:"Query",text:"zoe"});
+        await performAction({type:"click",index:1,expectedName:"Run"});
+        const after = await pageSnapshot();
+        if (!after.text.includes("Done: zoe")) throw new Error("Electron browser action verification failed.");
+        server.close(() => app.exit(0));
+      } catch (error) {
+        console.error("Zoe desktop smoke test failed:", error);
+        server.close(() => app.exit(1));
+      }
+    });
+    return;
+  }
   await createTab("https://example.com",true);
-  app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0){createWindow();void createTab();}});
+  app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0){createWindow();void createTab().catch(error=>console.error(error));}});
 });
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});
