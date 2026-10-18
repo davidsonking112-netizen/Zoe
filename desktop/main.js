@@ -114,6 +114,7 @@ async function pageSnapshot() {
     const elements=Array.from(document.querySelectorAll('a[href],button,input,textarea,select,[role="button"],[role="link"]')).filter(visible).slice(0,80).map((el,index)=>({
       index, tag:el.tagName.toLowerCase(), role:el.getAttribute("role")||({A:"link",BUTTON:"button",INPUT:({submit:"button",button:"button",checkbox:"checkbox",radio:"radio"}[el.type]||"textbox")}[el.tagName]||null),
       name:((el.getAttribute("aria-label")||el.innerText||el.value||el.getAttribute("placeholder")||el.getAttribute("title")||"").trim()).slice(0,160),
+      href:el.tagName==="A"?el.href:null,
       placeholder:el.getAttribute("placeholder"), type:el.type||null, disabled:!!el.disabled
     }));
     return {url:location.href,title:document.title,text,elements};
@@ -133,6 +134,7 @@ async function performAction(action) {
   if (!target) throw new Error("The selected page element no longer exists. Inspect the page again.");
   if (action.expectedName && target.name !== action.expectedName) throw new Error("The element changed since it was inspected. Inspect the page again.");
   if (target.disabled) throw new Error("That element is disabled.");
+  if (action.type === "click" && target.href) assertSafeAIUrl(new URL(target.href, snapshot.url).href);
   const risky = /\b(pay|purchase|buy|delete|remove|transfer|send|submit|publish|confirm|order|checkout|unsubscribe|cancel account)\b/i.test(target.name);
   if (action.type === "click" && risky) throw new Error("This action may have a significant effect. Zoe requires you to perform this click manually in the page.");
   return withActiveTab(async wc => {
