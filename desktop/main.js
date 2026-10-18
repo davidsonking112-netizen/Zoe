@@ -121,9 +121,9 @@ async function pageSnapshot() {
     const text=(document.body?.innerText||"").slice(0,14000);
     const elements=Array.from(document.querySelectorAll('a[href],button,input,textarea,select,[role="button"],[role="link"]')).filter(visible).slice(0,80).map((el,index)=>({
       index, tag:el.tagName.toLowerCase(), role:el.getAttribute("role")||({A:"link",BUTTON:"button",INPUT:({submit:"button",button:"button",checkbox:"checkbox",radio:"radio"}[el.type]||"textbox")}[el.tagName]||null),
-      name:((el.getAttribute("aria-label")||el.innerText||el.value||el.getAttribute("placeholder")||el.getAttribute("title")||"").trim()).slice(0,160),
+      name:((el.getAttribute("aria-label")||(el.labels?Array.from(el.labels).map(label=>label.innerText).join(" ").trim():"")||(["INPUT","TEXTAREA","SELECT"].includes(el.tagName)?((["button","submit","reset"].includes((el.type||"").toLowerCase())?el.value:"")||el.getAttribute("placeholder")||el.getAttribute("name")||el.getAttribute("title")||""):(el.innerText||el.getAttribute("title")||"")).trim()).slice(0,160),
       href:el.tagName==="A"?el.href:null,
-      placeholder:el.getAttribute("placeholder"), type:el.type||null, disabled:!!el.disabled
+      placeholder:el.getAttribute("placeholder"), autocomplete:el.getAttribute("autocomplete")||"", formSubmit:(el.tagName==="BUTTON"&&el.type==="submit")||(el.tagName==="INPUT"&&el.type==="submit"), type:el.type||null, disabled:!!el.disabled
     }));
     return {url:location.href,title:document.title,text,elements};
   })()`));
@@ -148,7 +148,11 @@ async function performAction(action, {fromAI = false} = {}) {
     name: target.name,
     elementType: target.type || "",
     inputType: target.type || "",
-    placeholder: target.placeholder || ""
+    placeholder: target.placeholder || "",
+    autocomplete: target.autocomplete || "",
+    href: target.href || "",
+    formSubmit: target.formSubmit === true,
+    role: target.role || ""
   })) {
     const actionName = action.type === "click" ? "click" : "fill";
     const hostname = (() => { try { return new URL(snapshot.url).hostname; } catch { return "the current page"; } })();
@@ -170,7 +174,8 @@ async function performAction(action, {fromAI = false} = {}) {
       const visible = el => { const s=getComputedStyle(el), r=el.getBoundingClientRect(); return s.display!=="none" && s.visibility!=="hidden" && r.width>0 && r.height>0; };
       const els=Array.from(document.querySelectorAll('a[href],button,input,textarea,select,[role="button"],[role="link"]')).filter(visible).slice(0,80);
       const el=els[p.index];
-      if (!el || ((el.getAttribute("aria-label")||el.innerText||el.value||el.getAttribute("placeholder")||el.getAttribute("title")||"").trim()).slice(0,160)!==p.expectedName) throw new Error("The page changed before the action could be completed.");
+      const nameOf = el => ((el.getAttribute("aria-label")||(el.labels?Array.from(el.labels).map(label=>label.innerText).join(" ").trim():"")||(["INPUT","TEXTAREA","SELECT"].includes(el.tagName)?((["button","submit","reset"].includes((el.type||"").toLowerCase())?el.value:"")||el.getAttribute("placeholder")||el.getAttribute("name")||el.getAttribute("title")||""):(el.innerText||el.getAttribute("title")||"")).trim()).slice(0,160);
+      if (!el || nameOf(el)!==p.expectedName) throw new Error("The page changed before the action could be completed.");
       if (el.disabled) throw new Error("Element is disabled.");
       if (p.type==="click") { el.click(); return {success:true,action:"click"}; }
       if (el.isContentEditable) { el.focus(); document.execCommand("selectAll"); document.execCommand("insertText",false,p.text); }
