@@ -57,21 +57,6 @@ test("history and bookmarks reject unsafe URLs and embedded credentials", async 
 });
 
 
-test("clearing history preserves bookmarks", async t => {
-  const { directory, store } = await temporaryStore();
-  t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  await store.recordVisit({ url: "https://example.com/", title: "Example" });
-  await store.addBookmark({ url: "https://example.com/", title: "Example" });
-  await store.clearHistory();
-  assert.equal(store.getHistory().length, 0);
-  assert.equal(store.getBookmarks().length, 1);
-  const restored = new BrowserDataStore(path.join(directory, "browser-data.json"));
-  await restored.load();
-  assert.equal(restored.getHistory().length, 0);
-  assert.equal(restored.getBookmarks().length, 1);
-});
-
-
 test("clears and persists browsing history without removing bookmarks", async t => {
   const { directory, store } = await temporaryStore();
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
