@@ -6,8 +6,38 @@ egress controls. DNS rebinding and platform-specific routing require defense in 
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
 from urllib.parse import urlsplit
+
+
+_SENSITIVE_URL_KEY = re.compile(
+    r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|auth|session|credential|api[_-]?key|signature|jwt|one[-_]?time[-_]?code|verification[-_]?code|^code$|^otp$|email|phone|ssn|card(?:number)?|cvv)",
+    re.IGNORECASE,
+)
+_SENSITIVE_FRAGMENT = __import__("re").compile(
+    r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth|session|secret|password|jwt|code)=",
+    __import__("re").IGNORECASE,
+)
+
+
+def redact_sensitive_url(url: str) -> str:
+    """Redact credential-like query parameters and fragments before exposing URLs to agents."""
+    from urllib.parse import parse_qsl, urlencode, urlunsplit
+
+    try:
+        parsed = urlsplit(url)
+        query = urlencode(
+            [
+                (key, "[redacted]" if _SENSITIVE_URL_KEY.search(key) else value)
+                for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+            ],
+            doseq=True,
+        )
+        fragment = "[redacted]" if _SENSITIVE_FRAGMENT.search(parsed.fragment) else parsed.fragment
+        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, fragment))
+    except (TypeError, ValueError):
+        return str(url or "")
 
 
 class UnsafeDestinationError(ValueError):
