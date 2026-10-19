@@ -220,7 +220,17 @@ function rebuildApplicationMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 function tabSummary(tab) {
-  return { id: tab.id, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() || "New tab", loading: tab.view.webContents.isLoading(), canGoBack: tab.view.webContents.navigationHistory.canGoBack(), canGoForward: tab.view.webContents.navigationHistory.canGoForward() };
+  const webContents = tab.view.webContents;
+  return {
+    id: tab.id,
+    url: webContents.getURL(),
+    title: webContents.getTitle() || "New tab",
+    loading: webContents.isLoading(),
+    canGoBack: webContents.navigationHistory.canGoBack(),
+    canGoForward: webContents.navigationHistory.canGoForward(),
+    muted: webContents.isAudioMuted(),
+    audible: webContents.isCurrentlyAudible()
+  };
 }
 function emitState() {
   if (!windowRef || windowRef.isDestroyed()) return;
@@ -278,6 +288,7 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   view.webContents.on("page-title-updated", () => { void recordTabVisit(tab); emitState(); });
   view.webContents.on("did-start-loading", emitState);
   view.webContents.on("did-stop-loading", emitState);
+  view.webContents.on("audio-state-changed", emitState);
   view.webContents.on("found-in-page", (_event, result) => {
     if (windowRef && !windowRef.isDestroyed()) windowRef.webContents.send("zoe:find-result", result);
   });
@@ -668,6 +679,13 @@ function registerIpc() {
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { clearAIGuard(activeTab()); if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { clearAIGuard(activeTab()); if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { clearAIGuard(activeTab()); wc.reload(); return {success:true}; }));
+  ipcMain.handle("zoe:toggle-mute", () => withActiveTab(wc => {
+    const muted = !wc.isAudioMuted();
+    wc.setAudioMuted(muted);
+    emitState();
+    reportNotice(muted ? "This tab is muted." : "This tab's audio is unmuted.");
+    return { success: true, muted };
+  }));
   ipcMain.handle("zoe:zoom", (_event, direction) => {
     if (!["in", "out", "reset"].includes(direction)) throw new Error("Invalid zoom direction.");
     return changeZoom(direction === "in" ? 0.5 : direction === "out" ? -0.5 : 0, direction === "reset");
@@ -818,6 +836,11 @@ app.whenReady().then(async()=>{
         const resetZoom = await changeZoom(0, true);
         if (resetZoom.percent !== 100) throw new Error("Zoom reset control did not restore 100%.");
         console.log("smoke: page zoom controls passed");
+        const muteOn = await withActiveTab(wc => { wc.setAudioMuted(true); return wc.isAudioMuted(); });
+        if (!muteOn) throw new Error("Mute current tab did not mute audio.");
+        const muteOff = await withActiveTab(wc => { wc.setAudioMuted(false); return wc.isAudioMuted(); });
+        if (muteOff) throw new Error("Unmute current tab did not restore audio.");
+        console.log("smoke: tab mute/unmute passed");
         const before = await pageSnapshot();
         console.log("smoke: inspected page");
         if (before.title !== "Zoe smoke fixture") throw new Error("Electron browser did not load the fixture.");
