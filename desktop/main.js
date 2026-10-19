@@ -185,7 +185,10 @@ function rebuildApplicationMenu() {
     ] },
     { label: "View", submenu: [
       { role: "reload" }, { role: "forceReload" }, { role: "toggleDevTools" }, { type: "separator" },
-      { role: "togglefullscreen" }
+      { label: "Zoom In", accelerator: "CmdOrCtrl+Plus", click: () => void changeZoom(0.5) },
+      { label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: () => void changeZoom(-0.5) },
+      { label: "Reset Zoom", accelerator: "CmdOrCtrl+0", click: () => void changeZoom(0, true) },
+      { type: "separator" }, { role: "togglefullscreen" }
     ] },
     { label: "History", submenu: [
       { label: "Reopen current page", click: () => { const tab = activeTab(); if (tab) void openStoredUrl(tab.view.webContents.getURL()); } },
@@ -328,6 +331,15 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     } else if (modifier && key === "f") {
       event.preventDefault();
       windowRef.webContents.send("zoe:open-find");
+    } else if (modifier && (key === "+" || key === "=")) {
+      event.preventDefault();
+      void changeZoom(0.5);
+    } else if (modifier && key === "-") {
+      event.preventDefault();
+      void changeZoom(-0.5);
+    } else if (modifier && key === "0") {
+      event.preventDefault();
+      void changeZoom(0, true);
     } else if (input.alt && input.key === "ArrowLeft" && view.webContents.navigationHistory.canGoBack()) {
       event.preventDefault();
       void view.webContents.navigationHistory.goBack();
@@ -395,6 +407,17 @@ async function withActiveTab(fn) {
   const tab = activeTab();
   if (!tab) throw new Error("No active tab.");
   return fn(tab.view.webContents);
+}
+
+async function changeZoom(delta = 0, reset = false) {
+  return withActiveTab(webContents => {
+    const current = webContents.getZoomLevel();
+    const next = reset ? 0 : Math.max(-5, Math.min(5, current + delta));
+    webContents.setZoomLevel(next);
+    const percent = Math.round(100 * Math.pow(1.2, next));
+    reportNotice(next === 0 ? "Page zoom reset to 100%." : `Page zoom: ${percent}%`);
+    return { success: true, zoomLevel: next, percent };
+  });
 }
 async function pageSnapshot({ redactSensitive = true } = {}) {
   const snapshot = await withActiveTab(webContents => webContents.executeJavaScript(`(() => {
@@ -643,6 +666,10 @@ function registerIpc() {
   ipcMain.handle("zoe:back", () => withActiveTab(async wc => { clearAIGuard(activeTab()); if(wc.navigationHistory.canGoBack()) await wc.navigationHistory.goBack(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:forward", () => withActiveTab(async wc => { clearAIGuard(activeTab()); if(wc.navigationHistory.canGoForward()) await wc.navigationHistory.goForward(); return tabSummary(activeTab()); }));
   ipcMain.handle("zoe:reload", () => withActiveTab(async wc => { clearAIGuard(activeTab()); wc.reload(); return {success:true}; }));
+  ipcMain.handle("zoe:zoom", (_event, direction) => {
+    if (!["in", "out", "reset"].includes(direction)) throw new Error("Invalid zoom direction.");
+    return changeZoom(direction === "in" ? 0.5 : direction === "out" ? -0.5 : 0, direction === "reset");
+  });
   ipcMain.handle("zoe:find", (_event, query, forward = true, findNext = false) => withActiveTab(wc => findPageText(wc, query, forward, findNext)));
   ipcMain.handle("zoe:stop-find", () => withActiveTab(wc => findPageText(wc, "", true, false)));
   ipcMain.handle("zoe:toggle-ai", () => { aiPanelVisible=!aiPanelVisible; layoutTabs(); emitState(); return aiPanelVisible; });
