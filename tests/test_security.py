@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zoe.security import UnsafeDestinationError, validate_public_http_url
+from zoe.security import UnsafeDestinationError, redact_sensitive_url, validate_public_http_url
 
 
 @pytest.mark.parametrize(
@@ -45,3 +45,15 @@ def test_rejects_unresolvable_hostname() -> None:
     with patch("zoe.security.socket.getaddrinfo", side_effect=OSError("no DNS")):
         with pytest.raises(UnsafeDestinationError, match="could not be resolved"):
             validate_public_http_url("https://does-not-resolve.invalid")
+
+
+
+def test_redacts_sensitive_query_parameters_and_fragments() -> None:
+    redacted = redact_sensitive_url(
+        "https://example.test/account?access_token=secret-value&tab=home#id_token=fragment-secret"
+    )
+    assert "secret-value" not in redacted
+    assert "fragment-secret" not in redacted
+    assert "tab=home" in redacted
+    assert "[redacted]" in redacted
+    assert redact_sensitive_url("https://example.test/#/settings") == "https://example.test/#/settings"
