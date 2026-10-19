@@ -1,87 +1,81 @@
 "use strict";
 
-const { spawn } = require("node:child_process");
+const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+const { spawn } = require("node:child_process");
 
-const [command, ...args] = process.argv.slice(2);
-const timeoutMs = Number(process.env.ZOE_SMOKE_TIMEOUT_MS || 90000);
-const successMarker = "smoke: model tool-call loop, privacy boundary, and denied consequential action passed";
-
-if (!command) {
-  console.error("Usage: node scripts/smoke-runner.js <executable> [args...]");
+const target = process.argv[2];
+if (!target) {
+  console.error("Usage: node test/smoke-runner.js <app-directory-or-executable> [args...]");
   process.exit(2);
 }
+const extraArgs = process.argv.slice(3);
+const developmentMode = target === ".";
+const executable = developmentMode ? require("electron") : path.resolve(target);
+const args = developmentMode ? [...extraArgs, "."] : extraArgs;
+const marker = path.join(os.tmpdir(), `zoe-smoke-${process.pid}-${Date.now()}.json`);
+const timeoutMs = 80_000;
+let stdout = "";
+let stderr = "";
+let child;
 
-let output = "";
-let finished = false;
-let sawSuccess = false;
-let killTimer;
-const child = spawn(path.resolve(command), args, {
-  env: { ...process.env, ZOE_SMOKE_TEST: "1" },
-  stdio: ["ignore", "pipe", "pipe"],
-  windowsHide: true,
-  detached: process.platform !== "win32"
-});
-
-function writeChunk(chunk, stream) {
-  const value = chunk.toString();
-  output = (output + value).slice(-100000);
-  stream.write(value);
-  if (output.includes(successMarker)) sawSuccess = true;
+function terminateChild() {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise(resolve => {
+    if (process.platform === "win32") {
+      const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      killer.once("close", () => resolve());
+      killer.once("error", () => { child.kill(); resolve(); });
+    } else {
+      try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+      const timer = setTimeout(() => {
+        if (child && child.exitCode === null && child.signalCode === null) {
+          try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
+        }
+      }, 1500);
+      timer.unref?.();
+      child.once("close", () => { clearTimeout(timer); resolve(); });
+      setTimeout(resolve, 2000).unref?.();
+    }
+  });
 }
 
-child.stdout.on("data", chunk => writeChunk(chunk, process.stdout));
-child.stderr.on("data", chunk => writeChunk(chunk, process.stderr));
+async function main() {
+  try { fs.rmSync(marker, { force: true }); } catch {}
+  child = spawn(executable, args, {
+    env: { ...process.env, ZOE_SMOKE_TEST: "1", ZOE_SMOKE_MARKER: marker },
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32",
+    windowsHide: true
+  });
+  child.stdout.on("data", chunk => { const text = chunk.toString(); stdout += text; process.stdout.write(text); });
+  child.stderr.on("data", chunk => { const text = chunk.toString(); stderr += text; process.stderr.write(text); });
 
-function terminateTree() {
-  if (process.platform === "win32") {
-    const killer = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-    killer.on("error", () => child.kill("SIGKILL"));
-  } else {
-    try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
-    setTimeout(() => {
-      try { process.kill(-child.pid, "SIGKILL"); } catch {}
-    }, 1500).unref();
+  const deadline = Date.now() + timeoutMs;
+  let result = null;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(marker)) {
+      try { result = JSON.parse(fs.readFileSync(marker, "utf8")); } catch {}
+      if (result) break;
+    }
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`Zoe exited before reporting smoke results (exit=${child.exitCode}, signal=${child.signalCode}).`);
+    }
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
+  if (!result) throw new Error(`Zoe smoke test did not finish within ${timeoutMs / 1000}s.`);
+  if (result.ok !== true) throw new Error(`Zoe smoke test failed: ${result.error || "unknown failure"}`);
+  console.log("smoke-runner: validated success marker; stopping the still-open browser process.");
+  await terminateChild();
+  console.log("smoke-runner: passed.");
 }
 
-const deadline = setTimeout(() => {
-  if (finished) return;
-  console.error("\nPackaged Electron smoke test timed out before its success marker.");
-  terminateTree();
-  finish(1);
-}, timeoutMs);
-
-let poll;
-
-function finish(code) {
-  if (finished) return;
-  finished = true;
-  clearTimeout(deadline);
-  clearTimeout(killTimer);
-  clearInterval(poll);
-  process.exitCode = code;
-}
-
-child.on("error", error => {
-  console.error("Could not launch Electron smoke test:", error.message);
-  finish(1);
+main().catch(async error => {
+  console.error(error.message || error);
+  if (stdout || stderr) console.error("Zoe process output was captured above.");
+  await terminateChild();
+  process.exitCode = 1;
+}).finally(() => {
+  try { fs.rmSync(marker, { force: true }); } catch {}
 });
-
-child.on("exit", (code, signal) => {
-  if (finished) return;
-  if (sawSuccess) finish(0);
-  else {
-    console.error(`Electron smoke test exited before success (code=${code}, signal=${signal}).`);
-    finish(code || 1);
-  }
-});
-
-poll = setInterval(() => {
-  if (finished || !sawSuccess) return;
-  clearInterval(poll);
-  // The app has exercised its browser, privacy, network-guard, and AI-tool paths.
-  // Stop any Electron helper processes left alive by packaged runtimes after the test.
-  killTimer = setTimeout(terminateTree, 500);
-  setTimeout(() => finish(0), 2500);
-}, 100);
