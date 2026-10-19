@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import ipaddress
 import re
-import socket
 import urllib.parse
+import socket
 
 
 _SENSITIVE_URL_KEY = re.compile(
@@ -52,7 +52,7 @@ def validate_public_http_url(url: str) -> str:
         raise UnsafeDestinationError("URL must contain 1–2048 characters.")
 
     try:
-        parsed = urlsplit(url.strip())
+        parsed = urllib.parse.urlsplit(url.strip())
         scheme = parsed.scheme.lower()
         hostname = parsed.hostname
         _ = parsed.port
