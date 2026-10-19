@@ -32,6 +32,7 @@ On each supported operating system, use a clean user account or virtual machine:
 - [ ] Test sensitive field filling and consequential clicks; cancellation must prevent the action.
 - [ ] Test ambiguous/missing elements, stale page observations, timeouts, interrupted downloads, and repeated tool-call requests.
 - [ ] Confirm no API keys, password values, or sensitive URL parameters appear in AI context, logs, crash reports, or release artifacts.
+- [ ] Verify both desktop and Python API page observations omit all input values and redact sensitive query parameters/fragments; cover IPv4-mapped, IPv4-compatible, 6to4, and special-use IPv6 destinations with regression tests.
 - [ ] Complete a security review of Electron isolation, preload IPC, navigation policy, permission handling, and the Python API.
 
 **Known security boundary:** DNS pre-validation is defense in depth because Chromium performs its own resolution. If Zoe is to be used for high-assurance autonomous browsing, implement network-level egress restrictions and test them against DNS rebinding and subresource requests before release.
