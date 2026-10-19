@@ -42,6 +42,22 @@ test("blocks additional special IPv6 destinations for AI navigation",()=>{
   assert.equal(isPrivateHost("2606:4700:4700::1111"),false);
 });
 
+test("blocks IPv6 transition and special-use ranges that can bypass private-address checks", () => {
+  for (const host of [
+    "2001::1",          // IETF protocol assignments
+    "2001:db8::1",      // documentation
+    "2002:7f00:1::",    // 6to4 embedding 127.0.0.1
+    "2002:c0a8:101::",  // 6to4 embedding 192.168.1.1
+    "3fff::1",          // documentation
+    "::192.168.1.1",    // IPv4-compatible representation
+    "::ffff:192.168.1.1"
+  ]) {
+    assert.equal(isPrivateHost(host), true, host);
+  }
+  assert.equal(isPrivateHost("2001:4860:4860::8888"), false);
+  assert.equal(isPrivateHost("2606:4700:4700::1111"), false);
+});
+
 test("classifies consequential clicks and sensitive fills for human approval",()=>{
   assert.equal(actionRequiresApproval({type:"click",name:"Continue to checkout"}),true);
   assert.equal(actionRequiresApproval({type:"click",name:"Run search"}),false);
