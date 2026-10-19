@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("zoe", Object.freeze({
   back: () => invoke("zoe:back"),
   forward: () => invoke("zoe:forward"),
   reload: () => invoke("zoe:reload"),
+  toggleMute: () => invoke("zoe:toggle-mute"),
   zoom: direction => invoke("zoe:zoom", direction),
   findInPage: (query, forward = true, findNext = false) => invoke("zoe:find", query, forward, findNext),
   stopFind: () => invoke("zoe:stop-find"),
