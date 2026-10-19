@@ -39,7 +39,7 @@ jobs:
         working-directory: desktop
         env:
           ZOE_SMOKE_TEST: "1"
-        run: timeout 90s xvfb-run -a npm run smoke
+        run: timeout 110s xvfb-run -a node scripts/smoke-runner.js ./node_modules/.bin/electron --no-sandbox .
       - name: Verify desktop application packaging
         working-directory: desktop
         run: timeout 180s npm run pack
@@ -84,7 +84,7 @@ jobs:
         working-directory: desktop
         env:
           ZOE_SMOKE_TEST: "1"
-        run: timeout 90s xvfb-run -a ./dist/linux-unpacked/zoe-browser --no-sandbox
+        run: timeout 110s xvfb-run -a node scripts/smoke-runner.js ./dist/linux-unpacked/zoe-browser --no-sandbox
       - name: Smoke-test packaged Windows app
         if: runner.os == 'Windows'
         working-directory: desktop
@@ -94,9 +94,7 @@ jobs:
         run: |
           $app = Join-Path $PWD "dist/win-unpacked/Zoe.exe"
           if (!(Test-Path $app)) { throw "Packaged Zoe executable was not found." }
-          $process = Start-Process -FilePath $app -PassThru
-          if (!$process.WaitForExit(90000)) { $process.Kill(); throw "Packaged Zoe smoke test timed out." }
-          if ($process.ExitCode -ne 0) { throw "Packaged Zoe exited with code $($process.ExitCode)." }
+          node scripts/smoke-runner.js $app
       - name: Smoke-test packaged macOS app
         if: runner.os == 'macOS'
         working-directory: desktop
@@ -109,8 +107,7 @@ jobs:
             echo "Packaged Zoe executable was not found."
             exit 1
           fi
-          export APP_BIN
-          python3 -c 'import os, subprocess; subprocess.run([os.environ["APP_BIN"]], timeout=90, check=True)'
+          node scripts/smoke-runner.js "$APP_BIN"
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
