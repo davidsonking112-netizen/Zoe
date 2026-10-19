@@ -35,14 +35,36 @@ function resolveAddressInput(raw) {
   return normalizeUrl(value);
 }
 
+function parseIpv6Groups(host) {
+  let value = host.toLowerCase();
+  if (value.includes(".")) {
+    const separator = value.lastIndexOf(":");
+    if (separator < 0) return null;
+    const octets = value.slice(separator + 1).split(".").map(Number);
+    if (octets.length !== 4 || octets.some(octet => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
+    const high = ((octets[0] << 8) | octets[1]).toString(16);
+    const low = ((octets[2] << 8) | octets[3]).toString(16);
+    value = value.slice(0, separator + 1) + high + ":" + low;
+  }
+  const halves = value.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":") : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - left.length - right.length;
+  if ((halves.length === 1 && missing !== 0) || (halves.length === 2 && missing < 1)) return null;
+  const groups = [...left, ...Array(missing).fill("0"), ...right].map(part => Number.parseInt(part, 16));
+  return groups.length === 8 && groups.every(group => Number.isInteger(group) && group >= 0 && group <= 0xffff)
+    ? groups : null;
+}
+
 function isPrivateHost(hostname) {
-  const host = String(hostname).toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  const host = String(hostname).toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
       host.endsWith(".internal") || host === "metadata.google.internal") return true;
 
   if (isIP(host) === 4) {
     const octets = host.split(".").map(Number);
-    const [a, b, c, d] = octets;
+    const [a, b, c] = octets;
     return a === 0 || a === 10 || a === 127 || a >= 224 ||
       (a === 100 && b >= 64 && b <= 127) ||
       (a === 169 && b === 254) ||
@@ -50,31 +72,32 @@ function isPrivateHost(hostname) {
       (a === 192 && (b === 168 || (b === 0 && (c === 0 || c === 2)) || (b === 88 && c === 99))) ||
       (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
       (a === 203 && b === 0 && c === 113) ||
-      (a === 255 && b === 255);
+      a === 255;
   }
 
   if (isIP(host) === 6) {
-    if (host === "::" || host === "::1") return true;
-    if (host.startsWith("::ffff:")) {
-      const mapped = host.slice(7);
-      if (isIP(mapped) === 4) return isPrivateHost(mapped);
-      const groups = mapped.split(":").filter(Boolean);
-      if (groups.length >= 2) {
-        const first = Number.parseInt(groups.at(-2), 16);
-        const second = Number.parseInt(groups.at(-1), 16);
-        if (Number.isFinite(first) && Number.isFinite(second)) {
-          return isPrivateHost([first >> 8, first & 255, second >> 8, second & 255].join("."));
-        }
-      }
-      return true;
+    const groups = parseIpv6Groups(host);
+    if (!groups) return true;
+    const [a, b, , , , f, g, h] = groups;
+    const zeroPrefix = groups.slice(0, 6).every(group => group === 0);
+    if (groups.every(group => group === 0) ||
+        (groups.slice(0, 7).every(group => group === 0) && h === 1)) return true;
+    // IPv4-mapped and deprecated IPv4-compatible IPv6 addresses inherit the embedded IPv4 policy.
+    if (groups.slice(0, 5).every(group => group === 0) && f === 0xffff) {
+      return isPrivateHost([g >> 8, g & 255, h >> 8, h & 255].join("."));
     }
-    const firstGroup = Number.parseInt(host.split(":")[0] || "0", 16);
-    return host.startsWith("fc") || host.startsWith("fd") ||
-      /^fe[89ab][0-9a-f]:/.test(host) || host.startsWith("ff") ||
-      host.startsWith("2001:db8:") || firstGroup < 0x2000 || firstGroup > 0x3fff;
+    if (zeroPrefix) return isPrivateHost([g >> 8, g & 255, h >> 8, h & 255].join("."));
+    // Only global-unicast IPv6 is eligible; reject special-use and transition ranges.
+    if (a < 0x2000 || a > 0x3fff) return true;
+    if (a === 0x2001 && b <= 0x01ff) return true; // IETF protocol assignments (2001::/23)
+    if (a === 0x2001 && b === 0x0db8) return true; // documentation (2001:db8::/32)
+    if (a === 0x2002) return true; // 6to4 can encapsulate arbitrary IPv4 destinations
+    if (a === 0x3fff && b <= 0x0fff) return true; // documentation (3fff::/20)
+    return false;
   }
   return false;
 }
+
 function redactSensitiveUrl(raw) {
   try {
     const url = new URL(raw);
