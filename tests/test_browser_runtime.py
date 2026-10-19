@@ -64,10 +64,10 @@ def test_navigation_response_redacts_sensitive_url_parameters() -> None:
             await browser.start()
             page = browser._page
             assert page is not None
-            await page.route(
-                "https://example.test/**",
-                lambda route: route.fulfill(status=200, body="<title>Safe fixture</title>"),
-            )
+            async def fulfill_fixture(route) -> None:
+                await route.fulfill(status=200, body="<title>Safe fixture</title>")
+
+            await page.route("https://example.test/**", fulfill_fixture)
             with patch("zoe.browser.validate_public_http_url", side_effect=lambda url: url):
                 result = await browser.navigate(
                     "https://example.test/account?access_token=navigation-secret&tab=home"
