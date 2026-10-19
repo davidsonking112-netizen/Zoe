@@ -9,7 +9,6 @@ def test_firefox_runtime_starts_inspects_and_closes() -> None:
         try:
             await browser.start()
             assert browser.started is True
-            await page.locator("textarea").fill("textarea-secret")
             observation = await browser.inspect()
             assert observation["url"] == "about:blank"
             assert observation["interactive_elements"] == []
@@ -34,6 +33,7 @@ def test_inspection_never_exposes_form_values_and_redacts_sensitive_link_urls() 
                 <textarea name="notes"></textarea>
                 <a href="https://example.test/account?access_token=url-secret&tab=home">Account</a>"""
             )
+            await page.locator("textarea").fill("textarea-secret")
             observation = await browser.inspect()
             serialized = str(observation)
             for secret in (
