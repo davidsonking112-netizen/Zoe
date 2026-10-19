@@ -6,35 +6,34 @@ egress controls. DNS rebinding and platform-specific routing require defense in 
 from __future__ import annotations
 
 import ipaddress
-import re
 import socket
 from urllib.parse import urlsplit
 
 
-_SENSITIVE_URL_KEY = re.compile(
-    r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|auth|session|credential|api[_-]?key|signature|jwt|one[-_]?time[-_]?code|verification[-_]?code|^code$|^otp$|email|phone|ssn|card(?:number)?|cvv)",
-    re.IGNORECASE,
-)
-_SENSITIVE_FRAGMENT = re.compile(
-    r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth|session|secret|password|jwt|code)=",
-    re.IGNORECASE,
-)
-
 
 def redact_sensitive_url(url: str) -> str:
     """Redact credential-like query parameters and fragments before exposing URLs to agents."""
-    try:
-        from urllib.parse import parse_qsl, urlencode, urlunsplit
+    import re
+    from urllib.parse import parse_qsl, urlencode, urlunsplit
 
+    sensitive_key = re.compile(
+        r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|auth|session|credential|api[_-]?key|signature|jwt|one[-_]?time[-_]?code|verification[-_]?code|^code$|^otp$|email|phone|ssn|card(?:number)?|cvv)",
+        re.IGNORECASE,
+    )
+    sensitive_fragment = re.compile(
+        r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth|session|secret|password|jwt|code)=",
+        re.IGNORECASE,
+    )
+    try:
         parsed = urlsplit(url)
         query = urlencode(
             [
-                (key, "[redacted]" if _SENSITIVE_URL_KEY.search(key) else value)
+                (key, "[redacted]" if sensitive_key.search(key) else value)
                 for key, value in parse_qsl(parsed.query, keep_blank_values=True)
             ],
             doseq=True,
         )
-        fragment = "[redacted]" if _SENSITIVE_FRAGMENT.search(parsed.fragment) else parsed.fragment
+        fragment = "[redacted]" if sensitive_fragment.search(parsed.fragment) else parsed.fragment
         return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, fragment))
     except (TypeError, ValueError):
         return str(url or "")
