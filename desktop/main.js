@@ -310,7 +310,16 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     clearAIGuard(tab);
     const key = String(input.key || "").toLowerCase();
     const modifier = input.control || input.meta;
-    if (modifier && input.shift && key === "t") {
+    if (modifier && (key === "=" || key === "+")) {
+      event.preventDefault();
+      void changeZoom(0.5);
+    } else if (modifier && key === "-") {
+      event.preventDefault();
+      void changeZoom(-0.5);
+    } else if (modifier && key === "0") {
+      event.preventDefault();
+      void changeZoom(0, true);
+    } else if (modifier && input.shift && key === "t") {
       event.preventDefault();
       void reopenClosedTab();
     } else if (modifier && key === "tab") {
@@ -811,6 +820,11 @@ app.whenReady().then(async()=>{
         const address = server.address();
         await createTab(`http://127.0.0.1:${address.port}/?access_token=fixture-url-secret`, true);
         console.log("smoke: page loaded");
+        const zoomed = await changeZoom(0.5);
+        if (zoomed.percent !== 110) throw new Error("Zoom-in control returned an unexpected zoom level.");
+        const resetZoom = await changeZoom(0, true);
+        if (resetZoom.percent !== 100) throw new Error("Zoom reset control did not restore 100%.");
+        console.log("smoke: page zoom controls passed");
         const before = await pageSnapshot();
         console.log("smoke: inspected page");
         if (before.title !== "Zoe smoke fixture") throw new Error("Electron browser did not load the fixture.");
