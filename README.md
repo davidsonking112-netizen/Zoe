@@ -213,7 +213,7 @@ pytest
 ruff check .
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design boundaries and next steps.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design boundaries and [docs/DEPENDENCY-ADVISORIES.md](docs/DEPENDENCY-ADVISORIES.md) for the tracked, unpatched moderate packaging-tool advisory.
 
 
 ## Zoe 1.0 release gate
