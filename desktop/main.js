@@ -27,6 +27,7 @@ const tabs = new Map();
 const closedTabs = [];
 const reservedDownloadPaths = new Set();
 const downloadHistory = [];
+const recentlyClosedTabs = [];
 const aiGuardedWebContents = new Set();
 const publicDestinationCache = new Map();
 
@@ -146,6 +147,21 @@ async function bookmarkCurrentPage() {
   }
 }
 
+async function reopenClosedTab() {
+  const entry = recentlyClosedTabs.pop();
+  if (!entry) return { reopened: false };
+  try {
+    await createTab(entry.url, true);
+    rebuildApplicationMenu();
+    reportNotice("Reopened tab: " + (entry.title || entry.url));
+    return { reopened: true };
+  } catch (error) {
+    recentlyClosedTabs.push(entry);
+    reportNotice(error.message || "Could not reopen the closed tab.", true);
+    return { reopened: false };
+  }
+}
+
 function rebuildApplicationMenu() {
   const history = browserData ? browserData.getHistory(25) : [];
   const bookmarks = browserData ? browserData.getBookmarks() : [];
@@ -191,6 +207,7 @@ function rebuildApplicationMenu() {
       { type: "separator" }, { role: "togglefullscreen" }
     ] },
     { label: "History", submenu: [
+      { label: "Reopen Closed Tab", accelerator: "CmdOrCtrl+Shift+T", enabled: recentlyClosedTabs.length > 0, click: () => void reopenClosedTab() },
       { label: "Reopen current page", click: () => { const tab = activeTab(); if (tab) void openStoredUrl(tab.view.webContents.getURL()); } },
       { type: "separator" }, ...historyItems,
       { type: "separator" },
@@ -328,6 +345,9 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     } else if (modifier && key === "l") {
       event.preventDefault();
       windowRef.webContents.send("zoe:focus-address");
+    } else if (modifier && key === "t" && input.shift) {
+      event.preventDefault();
+      void reopenClosedTab();
     } else if (modifier && key === "t") {
       event.preventDefault();
       void createTab("https://www.google.com", true).catch(error => reportNotice(error.message, true));
@@ -403,9 +423,15 @@ function closeTab(id) {
     if (closedTabs.length > 20) closedTabs.shift();
   }
   clearAIGuard(tab);
+  const closedUrl = tab.view.webContents.getURL();
+  if (/^https?:\/\//i.test(closedUrl)) {
+    recentlyClosedTabs.push({ url: closedUrl, title: tab.view.webContents.getTitle() || closedUrl });
+    recentlyClosedTabs.splice(0, Math.max(0, recentlyClosedTabs.length - 10));
+  }
   windowRef.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
   tabs.delete(tab.id);
+  rebuildApplicationMenu();
   scheduleSessionSave();
   if (activeTabId === tab.id) activeTabId = tabs.size ? [...tabs.keys()].at(-1) : null;
   if (!tabs.size) void createTab("https://www.google.com").catch(error => windowRef.webContents.send("zoe:error", error.message));
