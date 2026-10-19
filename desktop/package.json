@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check browser-data.js && node --check scripts/smoke-runner.js && node --check test/security.test.js && node --check test/browser-data.test.js && node --check test/smoke-runner.js",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "smoke": "node test/smoke-runner.js . --no-sandbox",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
