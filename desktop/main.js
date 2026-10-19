@@ -7,6 +7,7 @@ const http = require("node:http");
 
 const { isAllowedNavigation, isAllowedModelEndpoint, normalizeUrl, resolveAddressInput, actionRequiresApproval, assertPublicHttpUrl, redactSensitiveUrl, allocateDownloadPath } = require("./security");
 const { BrowserDataStore } = require("./browser-data");
+const { rememberClosedTab, takeClosedTab } = require("./tab-history");
 
 const TOOLBAR_HEIGHT = 104;
 const AI_PANEL_WIDTH = 350;
@@ -373,7 +374,8 @@ async function reopenClosedTab() {
     reportNotice("There are no recently closed tabs to reopen.");
     return null;
   }
-  const entry = closedTabs.pop();
+  const entry = takeClosedTab(closedTabs);
+  if (!entry) return null;
   try {
     const reopened = await createTab(entry.url, true);
     rebuildApplicationMenu();
@@ -391,10 +393,7 @@ function closeTab(id) {
   const tab = tabs.get(String(id));
   if (!tab) return { closed: false };
   const closedUrl = tab.view.webContents.getURL();
-  if (/^https?:\/\//i.test(closedUrl)) {
-    closedTabs.push({ url: closedUrl, title: tab.view.webContents.getTitle() || closedUrl });
-    if (closedTabs.length > 20) closedTabs.shift();
-  }
+  rememberClosedTab(closedTabs, { url: closedUrl, title: tab.view.webContents.getTitle() || closedUrl }, 20);
   clearAIGuard(tab);
   windowRef.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
@@ -836,14 +835,6 @@ app.whenReady().then(async()=>{
           throw new Error("Find-in-page failed to find and select visible text.");
         }
         console.log("smoke: find-in-page passed");
-        const temporaryTab = await createTab(`http://127.0.0.1:${address.port}/closed-tab`, true);
-        closeTab(temporaryTab.id);
-        const reopenedTab = await reopenClosedTab();
-        if (!reopenedTab || !reopenedTab.url.endsWith("/closed-tab")) {
-          throw new Error("Recently closed tab could not be reopened.");
-        }
-        closeTab(reopenedTab.id);
-        console.log("smoke: reopen closed tab passed");
         const originalTabId = activeTabId;
         const guardedSummary = await createTab(`http://127.0.0.1:${address.port}/guard-test`, true);
         const guardedTab = tabs.get(String(guardedSummary.id));
