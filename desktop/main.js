@@ -962,12 +962,22 @@ app.whenReady().then(async()=>{
           throw new Error("Zoe performed a consequential action without approval.");
         }
         console.log("smoke: model tool-call loop, privacy boundary, and denied consequential action passed");
+        if (process.env.ZOE_SMOKE_MARKER) {
+          fs.writeFileSync(process.env.ZOE_SMOKE_MARKER, JSON.stringify({ ok: true }), { encoding: "utf8", mode: 0o600 });
+        }
         modelServer.closeAllConnections?.();
         modelServer.close();
         server.close();
         app.exit(0);
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
+        if (process.env.ZOE_SMOKE_MARKER) {
+          try {
+            fs.writeFileSync(process.env.ZOE_SMOKE_MARKER, JSON.stringify({ ok: false, error: error.message || "Unknown smoke failure" }), { encoding: "utf8", mode: 0o600 });
+          } catch (markerError) {
+            console.error("Could not write smoke marker:", markerError.message || markerError);
+          }
+        }
         if (modelServer && modelServer.listening) {
           modelServer.closeAllConnections?.();
           modelServer.close();
