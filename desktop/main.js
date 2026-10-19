@@ -24,6 +24,7 @@ let aiConfig = { endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: 
 let aiHistory = [];
 let sharePageContext = true;
 const tabs = new Map();
+const closedTabs = [];
 const reservedDownloadPaths = new Set();
 const downloadHistory = [];
 const aiGuardedWebContents = new Set();
@@ -174,6 +175,7 @@ function rebuildApplicationMenu() {
   const template = [
     { label: "File", submenu: [
       { label: "New Tab", accelerator: "CmdOrCtrl+T", click: () => void createTab("https://www.google.com", true) },
+      { label: "Reopen Closed Tab", accelerator: "CmdOrCtrl+Shift+T", enabled: closedTabs.length > 0, click: () => void reopenClosedTab() },
       { label: "Close Tab", accelerator: "CmdOrCtrl+W", click: () => { if (activeTabId) closeTab(activeTabId); } },
       { type: "separator" }, { role: "quit" }
     ] },
@@ -305,7 +307,10 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     clearAIGuard(tab);
     const key = String(input.key || "").toLowerCase();
     const modifier = input.control || input.meta;
-    if (modifier && key === "tab") {
+    if (modifier && input.shift && key === "t") {
+      event.preventDefault();
+      void reopenClosedTab();
+    } else if (modifier && key === "tab") {
       event.preventDefault();
       cycleTab(input.shift ? -1 : 1);
     } else if (modifier && key === "l") {
@@ -349,9 +354,33 @@ function cycleTab(direction = 1) {
   return activeTabId;
 }
 
+async function reopenClosedTab() {
+  if (!closedTabs.length) {
+    reportNotice("There are no recently closed tabs to reopen.");
+    return null;
+  }
+  const entry = closedTabs.pop();
+  try {
+    const reopened = await createTab(entry.url, true);
+    rebuildApplicationMenu();
+    reportNotice("Reopened tab: " + (entry.title || entry.url));
+    return reopened;
+  } catch (error) {
+    closedTabs.push(entry);
+    rebuildApplicationMenu();
+    reportNotice(error.message || "Could not reopen the closed tab.", true);
+    return null;
+  }
+}
+
 function closeTab(id) {
   const tab = tabs.get(String(id));
   if (!tab) return { closed: false };
+  const closedUrl = tab.view.webContents.getURL();
+  if (/^https?:\/\//i.test(closedUrl)) {
+    closedTabs.push({ url: closedUrl, title: tab.view.webContents.getTitle() || closedUrl });
+    if (closedTabs.length > 20) closedTabs.shift();
+  }
   clearAIGuard(tab);
   windowRef.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
@@ -772,6 +801,14 @@ app.whenReady().then(async()=>{
           throw new Error("Find-in-page failed to find and select visible text.");
         }
         console.log("smoke: find-in-page passed");
+        const temporaryTab = await createTab(`http://127.0.0.1:${address.port}/closed-tab`, true);
+        closeTab(temporaryTab.id);
+        const reopenedTab = await reopenClosedTab();
+        if (!reopenedTab || !reopenedTab.url.endsWith("/closed-tab")) {
+          throw new Error("Recently closed tab could not be reopened.");
+        }
+        closeTab(reopenedTab.id);
+        console.log("smoke: reopen closed tab passed");
         const originalTabId = activeTabId;
         const guardedSummary = await createTab(`http://127.0.0.1:${address.port}/guard-test`, true);
         const guardedTab = tabs.get(String(guardedSummary.id));
