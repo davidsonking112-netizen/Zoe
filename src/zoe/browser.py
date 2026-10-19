@@ -7,7 +7,7 @@ from typing import Any
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 
-from zoe.security import UnsafeDestinationError, validate_public_http_url
+from zoe.security import UnsafeDestinationError, redact_sensitive_url, validate_public_http_url
 
 
 class BrowserNotStartedError(RuntimeError):
@@ -151,7 +151,7 @@ class ZoeBrowser:
                 index,
                 tag: el.tagName.toLowerCase(),
                 role: el.getAttribute('role'),
-                text: (el.innerText || el.value || '').trim().slice(0, 240),
+                text: (el.innerText || '').trim().slice(0, 240),
                 aria_label: el.getAttribute('aria-label'),
                 placeholder: el.getAttribute('placeholder'),
                 name: el.getAttribute('name'),
@@ -164,10 +164,13 @@ class ZoeBrowser:
             }"""
         )
         return {
-            "url": page.url,
+            "url": redact_sensitive_url(page.url),
             "title": await page.title(),
             "text": data["text"],
-            "interactive_elements": data["elements"],
+            "interactive_elements": [
+                {**element, "href": redact_sensitive_url(element["href"]) if element["href"] else None}
+                for element in data["elements"]
+            ],
             "text_truncated": data["truncated"],
         }
 
