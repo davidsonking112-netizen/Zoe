@@ -175,6 +175,7 @@ function rebuildApplicationMenu() {
   const template = [
     { label: "File", submenu: [
       { label: "New Tab", accelerator: "CmdOrCtrl+T", click: () => void createTab("https://www.google.com", true) },
+      { label: "Duplicate Current Tab", click: () => { const tab = activeTab(); if (tab) void createTab(tab.view.webContents.getURL(), true).catch(error => reportNotice(error.message, true)); } },
       { label: "Close Tab", accelerator: "CmdOrCtrl+W", click: () => { if (activeTabId) closeTab(activeTabId); } },
       { type: "separator" }, { role: "quit" }
     ] },
@@ -284,6 +285,7 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     if (params.linkURL) {
       menuItems.push(
         { label: "Open Link in New Tab", click: () => { void createTab(params.linkURL, true).catch(error => reportNotice(error.message, true)); } },
+        { label: "Open Link in Background Tab", click: () => { void createTab(params.linkURL, false).catch(error => reportNotice(error.message, true)); } },
         { label: "Copy Link Address", click: () => clipboard.writeText(params.linkURL) },
         { type: "separator" }
       );
