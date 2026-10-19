@@ -7,7 +7,7 @@ const { spawn } = require("node:child_process");
 
 const target = process.argv[2];
 if (!target) {
-  console.error("Usage: node test/smoke-runner.js <app-directory-or-executable> [args...]");
+  console.error("Usage: node scripts/smoke-runner.js <app-directory-or-executable> [args...]");
   process.exit(2);
 }
 const extraArgs = process.argv.slice(3);
