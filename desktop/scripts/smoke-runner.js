@@ -1,6 +1,7 @@
 "use strict";
 
 const { spawn } = require("node:child_process");
+const path = require("node:path");
 
 const [command, ...args] = process.argv.slice(2);
 const timeoutMs = Number(process.env.ZOE_SMOKE_TIMEOUT_MS || 90000);
@@ -15,7 +16,7 @@ let output = "";
 let finished = false;
 let sawSuccess = false;
 let killTimer;
-const child = spawn(command, args, {
+const child = spawn(path.resolve(command), args, {
   env: { ...process.env, ZOE_SMOKE_TEST: "1" },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,
