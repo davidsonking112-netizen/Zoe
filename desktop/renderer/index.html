@@ -31,10 +31,12 @@
       <label>OpenAI-compatible endpoint<input id="endpoint" value="http://127.0.0.1:11434/v1/chat/completions"></label>
       <label>Model<input id="model" value="qwen3.5:9b"></label>
       <label>API key (kept in memory for this session)<input id="api-key" type="password" autocomplete="off" placeholder="Optional for local Ollama"></label>
-      <p class="privacy-note">When you ask Zoe to use AI, page text and the current URL may be sent to this endpoint. Sensitive URL parameters are redacted, but visible page text can still contain private information. Use a local model for local processing.</p>
+      <p class="privacy-note">Page context can include visible text and the current URL. Remote model providers may receive it. Sensitive URL parameters are redacted, but visible text may still contain private information.</p>
+      <label class="privacy-toggle"><input id="share-page-context" type="checkbox" checked> Include current page context in AI requests</label>
       <button id="save-ai">Apply settings</button><span id="settings-status" class="subtle"></span>
     </details>
   </div>
+  <div class="chat-toolbar"><span class="subtle">Conversation stays in memory for this session.</span><button id="clear-chat" type="button" title="Clear conversation">Clear chat</button></div>
   <div id="chat" class="chat" aria-live="polite"><div class="bubble assistant-bubble">Hi! I can help with the page you're viewing, explain content, research public websites, and take limited browser actions. Website content is treated as untrusted.</div></div>
   <form id="chat-form" class="chat-form"><textarea id="prompt" rows="3" maxlength="12000" placeholder="Ask about this page or tell Zoe what to do…" aria-label="Message Zoe"></textarea><div class="chat-actions"><span class="subtle">Review actions carefully.</span><button id="send" class="send" type="submit">Send ↑</button></div></form>
 </aside>
