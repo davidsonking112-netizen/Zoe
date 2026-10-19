@@ -52,11 +52,14 @@ const deadline = setTimeout(() => {
   finish(1);
 }, timeoutMs);
 
+let poll;
+
 function finish(code) {
   if (finished) return;
   finished = true;
   clearTimeout(deadline);
   clearTimeout(killTimer);
+  clearInterval(poll);
   process.exitCode = code;
 }
 
@@ -74,7 +77,7 @@ child.on("exit", (code, signal) => {
   }
 });
 
-const poll = setInterval(() => {
+poll = setInterval(() => {
   if (finished || !sawSuccess) return;
   clearInterval(poll);
   // The app has exercised its browser, privacy, network-guard, and AI-tool paths.
