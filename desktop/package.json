@@ -7,14 +7,15 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check browser-data.js && node --check tab-history.js && node --check scripts/smoke-runner.js && node --check test/security.test.js && node --check test/browser-data.test.js && node --check test/tab-history.test.js",
+    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check scripts/audit-dependencies.js && node --check test/audit-dependencies.test.js && node --check browser-data.js && node --check tab-history.js && node --check scripts/smoke-runner.js && node --check test/security.test.js && node --check test/browser-data.test.js && node --check test/tab-history.test.js",
     "test": "node --test test/*.test.js",
     "smoke": "node scripts/smoke-runner.js . --no-sandbox",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac dmg",
-    "dist:linux": "electron-builder --linux AppImage deb"
+    "dist:linux": "electron-builder --linux AppImage deb",
+    "audit:dependencies": "node scripts/audit-dependencies.js"
   },
   "devDependencies": {
     "electron": "44.9.0",
