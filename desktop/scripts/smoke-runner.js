@@ -21,7 +21,9 @@ let stderr = "";
 let child;
 
 function terminateChild() {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  if (!child) return Promise.resolve();
+  // Kill the whole process tree even if the Electron parent has exited; Chromium
+  // helper processes can otherwise keep inherited stdout/stderr pipes alive.
   return new Promise(resolve => {
     if (process.platform === "win32") {
       const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
