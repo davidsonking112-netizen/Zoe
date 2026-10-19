@@ -60,4 +60,4 @@ Zoe currently has no automatic-update service. If a release is faulty:
 
 ## Current status
 
-The repository contains an early-alpha browser prototype, automated tests, an Electron smoke path, and cross-platform packaging configuration. This file is a release checklist, not proof that the checks have passed. Code signing, real-model evaluation, adversarial review, and clean-machine installation tests remain release gates until their results are recorded.
+The repository contains an early-alpha browser prototype, automated tests, an Electron smoke path, and cross-platform packaging configuration. This file is a release checklist, not proof that the checks have passed. Code signing, real-model evaluation, adversarial review, and clean-machine installation tests remain release gates until their results are recorded. The moderate-only, currently unpatched transitive packaging advisory is tracked in [DEPENDENCY-ADVISORIES.md](DEPENDENCY-ADVISORIES.md); it must be reviewed and accepted before 1.0.
