@@ -21,7 +21,7 @@ function evaluateAuditReport(report) {
       const id = match ? match[0].toUpperCase() : advisory.url;
       advisories.set(id, { id, packageName, severity: advisory.severity || vulnerability.severity || "unknown", title: advisory.title || id, url: advisory.url });
     }
-    if (via.length && !objects.length && vulnerability.severity !== "none") unclassified.push(packageName);
+    if (!via.length && vulnerability.severity !== "none") unclassified.push(packageName);
   }
 
   const metadata = report.metadata && report.metadata.vulnerabilities || {};
