@@ -15,9 +15,9 @@ _SENSITIVE_URL_KEY = re.compile(
     r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|auth|session|credential|api[_-]?key|signature|jwt|one[-_]?time[-_]?code|verification[-_]?code|^code$|^otp$|email|phone|ssn|card(?:number)?|cvv)",
     re.IGNORECASE,
 )
-_SENSITIVE_FRAGMENT = __import__("re").compile(
+_SENSITIVE_FRAGMENT = re.compile(
     r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth|session|secret|password|jwt|code)=",
-    __import__("re").IGNORECASE,
+    re.IGNORECASE,
 )
 
 
