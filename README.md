@@ -36,7 +36,7 @@
 - [x] Open-tab session persistence and restoration with a 20-tab cap
 - [x] Download handling with collision-safe filenames and progress/completion notices
 - [x] Confirmed clear-browsing-data action (history, cookies, site storage, and cache; bookmarks retained)
-- [x] Native browser context menus and common keyboard shortcuts (Ctrl/Cmd+L, T, W, R, F, tab cycling with Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab, reopen closed tabs with Ctrl/Cmd+Shift+T, and zoom with Ctrl/Cmd+=, Ctrl/Cmd+-, and Ctrl/Cmd+0)
+- [x] Native browser context menus, active-tab audio mute/unmute, page-zoom controls, and common keyboard shortcuts (Ctrl/Cmd+L, T, W, R, F, tab cycling with Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab, reopen closed tabs with Ctrl/Cmd+Shift+T, and zoom with Ctrl/Cmd+=, Ctrl/Cmd+-, and Ctrl/Cmd+0)
 - [x] Find-in-page controls and real Electron smoke coverage
 - [x] Session-scoped prompts for supported website permissions; deny unknown permissions by default
 - [x] Deterministic OpenAI-compatible model/tool-call smoke test with a local fake model
@@ -44,6 +44,7 @@
 - [x] Committed desktop npm lockfile; CI and release jobs use `npm ci`
 - [ ] Cross-platform package and installation validation on clean Windows, macOS, and Linux machines
 - [ ] Adversarial browser/AI security review, including redirects, DNS rebinding, malicious downloads, and prompt injection
+- [ ] Resolve or formally accept and track the remaining moderate-only transitive build-tool advisories; npm audit currently reports no high/critical findings but does report unpatched sprintf-js exposure through the Electron packaging toolchain.
 - [ ] Remote-model end-to-end evaluation across supported OpenAI-compatible providers
 - [ ] Reliability, latency, memory, and multi-tab benchmarks
 - [ ] Release signing/notarization and a documented 1.0 rollback/support process
