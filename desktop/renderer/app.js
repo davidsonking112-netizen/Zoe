@@ -20,6 +20,9 @@ $("address-form").addEventListener("submit",async e=>{e.preventDefault();try{awa
 $("back").addEventListener("click",()=>window.zoe.back().catch(e=>toast(e.message)));
 $("forward").addEventListener("click",()=>window.zoe.forward().catch(e=>toast(e.message)));
 $("reload").addEventListener("click",()=>window.zoe.reload().catch(e=>toast(e.message)));
+$("zoom-out").addEventListener("click",()=>window.zoe.zoom("out").catch(e=>toast(e.message)));
+$("zoom-reset").addEventListener("click",()=>window.zoe.zoom("reset").catch(e=>toast(e.message)));
+$("zoom-in").addEventListener("click",()=>window.zoe.zoom("in").catch(e=>toast(e.message)));
 $("new-tab").addEventListener("click",()=>window.zoe.newTab("https://www.google.com").catch(e=>toast(e.message)));
 $("toggle-ai").addEventListener("click",()=>window.zoe.toggleAI().catch(e=>toast(e.message)));
 $("hide-ai").addEventListener("click",()=>window.zoe.toggleAI().catch(e=>toast(e.message)));
