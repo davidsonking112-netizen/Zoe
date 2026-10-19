@@ -39,7 +39,7 @@ jobs:
         working-directory: desktop
         env:
           ZOE_SMOKE_TEST: "1"
-        run: timeout 110s xvfb-run -a node scripts/smoke-runner.js ./node_modules/.bin/electron --no-sandbox .
+        run: timeout 110s xvfb-run -a node scripts/smoke-runner.js . --no-sandbox
       - name: Verify desktop application packaging
         working-directory: desktop
         run: timeout 180s npm run pack
