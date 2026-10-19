@@ -6,3 +6,5 @@
 .privacy-note{font-size:11px;line-height:1.5;color:#e7c98b;margin:8px 0 10px}
 
 .privacy-toggle{display:flex!important;grid-template-columns:16px 1fr!important;align-items:center;gap:8px!important;line-height:1.4}.ai-settings .privacy-toggle input{width:15px;height:15px;margin:0;padding:0;accent-color:#b9f27c}.chat-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #293749}.chat-toolbar button{font-size:10px;padding:5px 8px;white-space:nowrap}
+
+#zoom-reset{min-width:54px;font-variant-numeric:tabular-nums}
