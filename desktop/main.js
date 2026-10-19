@@ -305,7 +305,10 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     clearAIGuard(tab);
     const key = String(input.key || "").toLowerCase();
     const modifier = input.control || input.meta;
-    if (modifier && key === "l") {
+    if (modifier && key === "tab") {
+      event.preventDefault();
+      cycleTab(input.shift ? -1 : 1);
+    } else if (modifier && key === "l") {
       event.preventDefault();
       windowRef.webContents.send("zoe:focus-address");
     } else if (modifier && key === "t") {
@@ -334,6 +337,18 @@ async function createTab(rawUrl = "https://example.com", select = true) {
   emitState();
   return tabSummary(tab);
 }
+function cycleTab(direction = 1) {
+  const ids = [...tabs.keys()];
+  if (ids.length < 2) return activeTabId;
+  const currentIndex = ids.indexOf(activeTabId);
+  const startIndex = currentIndex < 0 ? 0 : currentIndex;
+  const nextIndex = (startIndex + (direction < 0 ? -1 : 1) + ids.length) % ids.length;
+  activeTabId = ids[nextIndex];
+  layoutTabs();
+  emitState();
+  return activeTabId;
+}
+
 function closeTab(id) {
   const tab = tabs.get(String(id));
   if (!tab) return { closed: false };
@@ -761,6 +776,10 @@ app.whenReady().then(async()=>{
         const guardedSummary = await createTab(`http://127.0.0.1:${address.port}/guard-test`, true);
         const guardedTab = tabs.get(String(guardedSummary.id));
         if (!guardedTab || !guardedTab.view) throw new Error("The network-guard smoke test did not create a usable tab.");
+        if (cycleTab(1) !== originalTabId || cycleTab(-1) !== guardedTab.id) {
+          throw new Error("Keyboard tab-cycling logic failed.");
+        }
+        console.log("smoke: tab cycling passed");
         activateAIGuard(guardedTab);
         const privateUrl = `http://127.0.0.1:${address.port}/private-network-probe`;
         const navigationAttempt = guardedTab.view.webContents.loadURL(privateUrl).then(
@@ -851,7 +870,7 @@ app.whenReady().then(async()=>{
         modelServer.closeAllConnections?.();
         modelServer.close();
         server.close();
-        process.exit(0);
+        app.exit(0);
       } catch (error) {
         console.error("Zoe desktop smoke test failed:", error);
         if (modelServer && modelServer.listening) {
@@ -859,7 +878,7 @@ app.whenReady().then(async()=>{
           modelServer.close();
         }
         server.close();
-        process.exit(1);
+        app.exit(1);
       }
     });
     return;
