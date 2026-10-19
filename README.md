@@ -30,6 +30,8 @@
 - [x] Electron browser shell with tabs, address bar, back/forward, reload, popup-to-tab behavior, and AI sidebar
 - [x] OpenAI-compatible chat/tool-call adapter (local Ollama endpoint by default; compatible HTTPS endpoints supported)
 - [x] Native approval dialog for detected consequential AI clicks and sensitive field fills
+- [x] User-controlled page-context sharing toggle for AI requests
+- [x] Clear-chat control that clears visible messages and in-memory AI conversation history
 - [x] Persistent, bounded bookmarks and browsing history with URL validation
 - [x] Open-tab session persistence and restoration with a 20-tab cap
 - [x] Download handling with collision-safe filenames and progress/completion notices
@@ -61,7 +63,7 @@ npm ci
 npm start
 ```
 
-The browser opens a normal tabbed window with an optional AI sidebar. The default model endpoint is a local Ollama OpenAI-compatible endpoint at `http://127.0.0.1:11434/v1/chat/completions`, using model `qwen3.5:9b`. Start Ollama and pull a compatible model first, or configure an HTTPS OpenAI-compatible endpoint in the AI settings. API keys are held in memory for the current app session and are not saved. Native menus provide History, Bookmarks, and Clear Browsing Data; downloads go to the system Downloads folder with progress notifications. AI actions are bounded, and consequential clicks or sensitive field fills require an approval dialog. This is still alpha software: use a test profile for sensitive work until security and installed-build testing are complete.
+The browser opens a normal tabbed window with an optional AI sidebar. The default model endpoint is a local Ollama OpenAI-compatible endpoint at `http://127.0.0.1:11434/v1/chat/completions`, using model `qwen3.5:9b`. Start Ollama and pull a compatible model first, or configure an HTTPS OpenAI-compatible endpoint in the AI settings. API keys are held in memory for the current app session and are not saved. The AI settings include a page-context sharing toggle; turn it off to prevent new requests from including page text and URL. Clear chat removes the visible conversation and in-memory model history. Native menus provide History, Bookmarks, and Clear Browsing Data; downloads go to the system Downloads folder with progress notifications. AI actions are bounded, and consequential clicks or sensitive field fills require an approval dialog. This is still alpha software: use a test profile for sensitive work until security and installed-build testing are complete.
 
 
 ## Build a desktop package
