@@ -7,33 +7,39 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from urllib.parse import urlsplit
+from urllib.parse import quote, unquote_plus, urlsplit, urlunsplit
 
 
 
 def redact_sensitive_url(url: str) -> str:
     """Redact credential-like query parameters and fragments before exposing URLs to agents."""
-    import re
-    from urllib.parse import parse_qsl, urlencode, urlunsplit
-
-    sensitive_key = re.compile(
-        r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|auth|session|credential|api[_-]?key|signature|jwt|one[-_]?time[-_]?code|verification[-_]?code|^code$|^otp$|email|phone|ssn|card(?:number)?|cvv)",
-        re.IGNORECASE,
-    )
-    sensitive_fragment = re.compile(
-        r"(?:access[_-]?token|refresh[_-]?token|id[_-]?token|auth|session|secret|password|jwt|code)=",
-        re.IGNORECASE,
-    )
     try:
         parsed = urlsplit(url)
-        query = urlencode(
-            [
-                (key, "[redacted]" if sensitive_key.search(key) else value)
-                for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-            ],
-            doseq=True,
+        query_parts: list[str] = []
+        sensitive_parts = (
+            "token", "secret", "password", "passwd", "auth", "session", "credential",
+            "api_key", "api-key", "apikey", "signature", "jwt", "code", "otp", "email",
+            "phone", "ssn", "card", "cvv", "verification", "one_time_code",
+            "one-time-code", "onetimecode",
         )
-        fragment = "[redacted]" if sensitive_fragment.search(parsed.fragment) else parsed.fragment
+        for part in parsed.query.split("&"):
+            if not part:
+                continue
+            key, separator, value = part.partition("=")
+            normalized_key = unquote_plus(key).lower()
+            sensitive = normalized_key in {"code", "otp"} or any(
+                marker in normalized_key for marker in sensitive_parts
+            )
+            if sensitive and separator:
+                value = quote("[redacted]", safe="")
+            query_parts.append(key + (separator + value if separator else ""))
+        query = "&".join(query_parts)
+        normalized_fragment = unquote_plus(parsed.fragment).lower()
+        sensitive_fragment = any(
+            marker in normalized_fragment
+            for marker in ("token", "auth", "session", "secret", "password", "jwt", "code=")
+        )
+        fragment = "[redacted]" if sensitive_fragment else parsed.fragment
         return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, fragment))
     except (TypeError, ValueError):
         return str(url or "")
