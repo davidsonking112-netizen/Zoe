@@ -8,7 +8,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+import urllib.parse
 
 
 _SENSITIVE_URL_KEY = re.compile(
@@ -24,16 +24,16 @@ _SENSITIVE_FRAGMENT = re.compile(
 def redact_sensitive_url(url: str) -> str:
     """Redact credential-like query parameters and fragments before exposing URLs to agents."""
     try:
-        parsed = urlsplit(url)
-        query = urlencode(
+        parsed = urllib.parse.urlsplit(url)
+        query = urllib.parse.urlencode(
             [
                 (key, "[redacted]" if _SENSITIVE_URL_KEY.search(key) else value)
-                for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+                for key, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
             ],
             doseq=True,
         )
         fragment = "[redacted]" if _SENSITIVE_FRAGMENT.search(parsed.fragment) else parsed.fragment
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, fragment))
+        return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, fragment))
     except (TypeError, ValueError):
         return str(url or "")
 
