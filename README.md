@@ -49,6 +49,12 @@
 - [ ] Reliability, latency, memory, and multi-tab benchmarks
 - [ ] Release signing/notarization and a documented 1.0 rollback/support process
 
+## Automated validation
+
+The CI workflow runs on pull-request commits and checks the current commit—not just whether a package can be built. It runs the desktop JavaScript checks and Node test suite, launches Zoe against a local browser fixture, exercises the OpenAI-compatible tool-call loop with a deterministic mock model, checks page-context privacy and approval denial, builds the unpacked app, runs Python lint and Firefox-backed API/browser integration tests, and builds plus smoke-tests packages on Linux, Windows, and macOS.
+
+The latest recorded successful run before this documentation update is [CI run 39195076239](https://github.com/davidsonking112-netizen/Zoe/actions/runs/39195076239) for commit `a0850d43dc36dee0834abeeaa1c142c95b9654d1`. It passed all four jobs: 30 desktop Node tests; the Electron smoke workflow; 42 Python tests with 79% total statement coverage; and package build/smoke checks on all three supported CI platforms. The dependency audit gate also passed its policy, which explicitly tracks one moderate, upstream-unpatched `sprintf-js` advisory in development-only packaging tooling. This is **not** a claim that the dependency tree is vulnerability-free. A later code change must be validated by the checks for that exact new commit before merge.
+
 ## Requirements
 
 - Node.js 22+ and npm for the desktop app
