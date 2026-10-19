@@ -15,7 +15,8 @@ Zoe is a normal desktop browser with an integrated AI assistant, not a special-p
 - `desktop/preload.js`: exposes a narrow, explicit IPC bridge; renderer Node integration is disabled.
 - `desktop/renderer/`: ordinary browser chrome, standard navigation controls, context-menu feedback, download status, and an optional AI assistant sidebar.
 - Native Electron menus provide bookmarks, recent history, and a confirmed clear-browsing-data action; downloads are saved with collision-safe filenames.
-- `desktop/security.js`: URL/search input parsing, public-destination checks, model-endpoint validation, and consequential-action classification.
+- `desktop/security.js`: URL/search input parsing, public-destination checks (including special-use IPv6 and IPv4-embedded IPv6 ranges), model-endpoint validation, and consequential-action classification.
+- `zoe.security.redact_sensitive_url`: redacts credential-like URL query parameters and sensitive fragments before URLs are exposed in Python API observations.
 - `desktop/browser-data.js`: bounded, validated, atomic persistence for bookmarks and history.
 - `zoe.tasks`: executes bounded, explicit sequential task steps and records per-step outcomes.
 - `zoe.client`: async Python SDK for session-scoped browser operations and task execution; it is model-provider neutral.
@@ -45,7 +46,7 @@ The browser launches lazily. A health check must not start Firefox.
 - AI navigation resolves hostnames and rejects known private/reserved results, but the browser performs its own DNS resolution. This does not eliminate DNS rebinding or all subresource-based access risks; network-level egress controls are still needed for high-assurance agent deployments.
 - URL checks are defense in depth, not a complete SSRF boundary. DNS rebinding and browser routing need network-level egress controls in a production deployment.
 - Desktop AI tools use a bounded call loop and require a native approval dialog for detected consequential clicks and sensitive field fills. The classifier is a safety layer, not a perfect understanding of website intent.
-- Page snapshots intentionally avoid serializing ordinary form values; website text remains untrusted and can still attempt prompt injection.
+- Desktop and Python page snapshots intentionally omit form-field values and redact credential-like URL parameters/fragments before exposing page context to an AI or automation client. Website text remains untrusted and can still attempt prompt injection.
 - Screenshots are returned as base64 by the Python automation API and should be bounded and access-controlled before broader use.
 - Cross-platform packaging is configured, but unsigned installers and successful CI packaging do not replace installation tests, code signing, notarization, or a security review.
 - Website text is untrusted input. It must never override system policy or grant itself permissions.
