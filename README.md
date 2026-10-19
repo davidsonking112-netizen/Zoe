@@ -31,6 +31,8 @@
 - [x] OpenAI-compatible chat/tool-call adapter (local Ollama endpoint by default; compatible HTTPS endpoints supported)
 - [x] Native approval dialog for detected consequential AI clicks and sensitive field fills
 - [x] User-controlled page-context sharing toggle for AI requests
+- [x] Desktop and Python page inspection omit form values and redact sensitive URL query/fragment data before exposing observations
+- [x] AI destination checks reject special-use IPv6 and IPv4-embedded IPv6 transition addresses
 - [x] Clear-chat control that clears visible messages and in-memory AI conversation history
 - [x] Persistent, bounded bookmarks and browsing history with URL validation
 - [x] Open-tab session persistence and restoration with a 20-tab cap
