@@ -233,7 +233,7 @@ class ZoeBrowser:
             "action": action,
             "strategy": strategy,
             "matched_count": count,
-            "url": page.url,
+            "url": redact_sensitive_url(page.url),
             "title": await page.title(),
         }
 
