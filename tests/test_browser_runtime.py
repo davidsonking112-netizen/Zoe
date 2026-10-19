@@ -53,3 +53,29 @@ def test_inspection_never_exposes_form_values_and_redacts_sensitive_link_urls() 
             await browser.close()
 
     asyncio.run(exercise_runtime())
+
+
+def test_navigation_response_redacts_sensitive_url_parameters() -> None:
+    from unittest.mock import patch
+
+    async def exercise_runtime() -> None:
+        browser = ZoeBrowser()
+        try:
+            await browser.start()
+            page = browser._page
+            assert page is not None
+            await page.route(
+                "https://example.test/**",
+                lambda route: route.fulfill(status=200, body="<title>Safe fixture</title>"),
+            )
+            with patch("zoe.browser.validate_public_http_url", side_effect=lambda url: url):
+                result = await browser.navigate(
+                    "https://example.test/account?access_token=navigation-secret&tab=home"
+                )
+            assert "navigation-secret" not in result["url"]
+            assert "access_token=%5Bredacted%5D" in result["url"]
+            assert "tab=home" in result["url"]
+        finally:
+            await browser.close()
+
+    asyncio.run(exercise_runtime())
