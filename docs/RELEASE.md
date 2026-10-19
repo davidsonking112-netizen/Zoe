@@ -12,11 +12,12 @@ Zoe 1.0 means a **normal desktop browser with an integrated AI assistant**, not 
 - [ ] Desktop packages build on clean Linux, Windows, and macOS runners.
 - [x] The desktop dependency lockfile is committed; CI and release workflows use `npm ci`.
 - [ ] Review dependency advisories and document accepted risks.
+- [ ] Re-run npm audit after every packaging-tool update. Current CI has no high/critical findings, but npm audit reports eight moderate findings in a development-only Electron packaging dependency chain; the sprintf-js advisory lists no patched release. Track upstream status and do not describe the dependency tree as vulnerability-free.
 
 ### 2. Manual installed-app verification
 On each supported operating system, use a clean user account or virtual machine:
 1. Install the package and launch Zoe.
-2. Browse and search, open/close/switch tabs, use back/forward/reload, context menus, keyboard shortcuts, and find-in-page.
+2. Browse and search, open/close/switch tabs, use back/forward/reload, context menus, keyboard shortcuts, find-in-page, zoom, and tab mute/unmute.
 3. Save and remove a bookmark; close and reopen the app; verify bookmarks, history, and open-tab restoration.
 4. Download a harmless fixture file; verify the saved path and filename; test duplicate filenames and cancellation/interrupt behavior.
 5. Test each supported website permission prompt and confirm unknown permissions are denied.
