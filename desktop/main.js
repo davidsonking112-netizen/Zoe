@@ -388,7 +388,7 @@ function closeTab(id) {
   scheduleSessionSave();
   if (activeTabId === tab.id) activeTabId = tabs.size ? [...tabs.keys()].at(-1) : null;
   if (!tabs.size) void createTab("https://www.google.com").catch(error => windowRef.webContents.send("zoe:error", error.message));
-  layoutTabs(); emitState();
+  layoutTabs(); emitState(); rebuildApplicationMenu();
   return { closed: true };
 }
 async function withActiveTab(fn) {
