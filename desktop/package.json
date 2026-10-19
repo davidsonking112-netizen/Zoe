@@ -1,0 +1,65 @@
+{
+  "name": "zoe-browser",
+  "version": "0.2.0-alpha.1",
+  "private": true,
+  "description": "Zoe desktop browser with an integrated AI assistant",
+  "homepage": "https://github.com/davidsonking112-netizen/Zoe",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "check:js": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check security.js && node --check scripts/audit-dependencies.js && node --check test/audit-dependencies.test.js && node --check browser-data.js && node --check tab-history.js && node --check scripts/smoke-runner.js && node --check test/security.test.js && node --check test/browser-data.test.js && node --check test/tab-history.test.js",
+    "test": "node --test test/*.test.js",
+    "smoke": "node scripts/smoke-runner.js . --no-sandbox",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg",
+    "dist:linux": "electron-builder --linux AppImage deb",
+    "audit:dependencies": "node scripts/audit-dependencies.js"
+  },
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.luminouslabs.zoe",
+    "productName": "Zoe",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "security.js",
+      "browser-data.js",
+      "tab-history.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "category": "Network;WebBrowser;",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "maintainer": "Luminous Labs Intelligence"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

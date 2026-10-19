@@ -1,0 +1,117 @@
+name: CI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: Audit locked desktop dependencies (fail on new or high/critical advisories)
+        working-directory: desktop
+        run: npm run audit:dependencies
+      - name: Check desktop JavaScript
+        working-directory: desktop
+        run: npm run check:js
+      - name: Test desktop security helpers
+        working-directory: desktop
+        run: npm test
+      - name: Smoke-test Electron browser and AI-safe page inspection
+        working-directory: desktop
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: timeout 110s xvfb-run -a node scripts/smoke-runner.js . --no-sandbox
+      - name: Verify desktop application packaging
+        working-directory: desktop
+        run: timeout 180s npm run pack
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run lint
+        run: ruff check .
+      - name: Install Firefox for Playwright
+        run: python -m playwright install --with-deps firefox
+      - name: Run tests
+        run: pytest --cov=zoe --cov-report=term-missing
+
+  desktop-package:
+    name: Package desktop app (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: Build platform installer
+        working-directory: desktop
+        run: npm run dist
+      - name: Smoke-test packaged Linux app
+        if: runner.os == 'Linux'
+        working-directory: desktop
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: timeout 110s xvfb-run -a node scripts/smoke-runner.js ./dist/linux-unpacked/zoe-browser --no-sandbox
+      - name: Smoke-test packaged Windows app
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        shell: pwsh
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: |
+          $app = Join-Path $PWD "dist/win-unpacked/Zoe.exe"
+          if (!(Test-Path $app)) { throw "Packaged Zoe executable was not found." }
+          node scripts/smoke-runner.js $app
+      - name: Smoke-test packaged macOS app
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        env:
+          ZOE_SMOKE_TEST: "1"
+        run: |
+          APP_BIN="$(find dist -path '*/Zoe.app/Contents/MacOS/Zoe' -type f -print -quit)"
+          if [ -z "$APP_BIN" ]; then
+            find dist -maxdepth 4 -name '*.app' -print
+            echo "Packaged Zoe executable was not found."
+            exit 1
+          fi
+          node scripts/smoke-runner.js "$APP_BIN"
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zoe-package-${{ matrix.os }}
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 7
