@@ -36,7 +36,7 @@
 - [x] Open-tab session persistence and restoration with a 20-tab cap
 - [x] Download handling with collision-safe filenames and progress/completion notices
 - [x] Confirmed clear-browsing-data action (history, cookies, site storage, and cache; bookmarks retained)
-- [x] Native browser context menus and common keyboard shortcuts (Ctrl/Cmd+L, T, W, R, F, Tab cycling with Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab)
+- [x] Native browser context menus and common keyboard shortcuts (Ctrl/Cmd+L, T, W, R, F, tab cycling with Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab, and reopen closed tabs with Ctrl/Cmd+Shift+T)
 - [x] Find-in-page controls and real Electron smoke coverage
 - [x] Session-scoped prompts for supported website permissions; deny unknown permissions by default
 - [x] Deterministic OpenAI-compatible model/tool-call smoke test with a local fake model
