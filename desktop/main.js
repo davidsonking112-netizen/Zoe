@@ -146,21 +146,6 @@ async function bookmarkCurrentPage() {
   }
 }
 
-async function reopenClosedTab() {
-  const entry = closedTabs.pop();
-  if (!entry) return { reopened: false };
-  try {
-    await createTab(entry.url, true);
-    rebuildApplicationMenu();
-    reportNotice("Reopened tab: " + (entry.title || entry.url));
-    return { reopened: true };
-  } catch (error) {
-    closedTabs.push(entry);
-    reportNotice(error.message || "Could not reopen the closed tab.", true);
-    return { reopened: false };
-  }
-}
-
 function rebuildApplicationMenu() {
   const history = browserData ? browserData.getHistory(25) : [];
   const bookmarks = browserData ? browserData.getBookmarks() : [];
@@ -190,7 +175,6 @@ function rebuildApplicationMenu() {
   const template = [
     { label: "File", submenu: [
       { label: "New Tab", accelerator: "CmdOrCtrl+T", click: () => void createTab("https://www.google.com", true) },
-      { label: "Reopen Closed Tab", accelerator: "CmdOrCtrl+Shift+T", enabled: closedTabs.length > 0, click: () => void reopenClosedTab() },
       { label: "Close Tab", accelerator: "CmdOrCtrl+W", click: () => { if (activeTabId) closeTab(activeTabId); } },
       { type: "separator" }, { role: "quit" }
     ] },
@@ -356,15 +340,6 @@ async function createTab(rawUrl = "https://example.com", select = true) {
     } else if (modifier && key === "f") {
       event.preventDefault();
       windowRef.webContents.send("zoe:open-find");
-    } else if (modifier && (key === "+" || key === "=")) {
-      event.preventDefault();
-      void changeZoom(0.5);
-    } else if (modifier && key === "-") {
-      event.preventDefault();
-      void changeZoom(-0.5);
-    } else if (modifier && key === "0") {
-      event.preventDefault();
-      void changeZoom(0, true);
     } else if (input.alt && input.key === "ArrowLeft" && view.webContents.navigationHistory.canGoBack()) {
       event.preventDefault();
       void view.webContents.navigationHistory.goBack();
