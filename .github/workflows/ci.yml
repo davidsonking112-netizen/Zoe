@@ -26,9 +26,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci --no-audit --no-fund
-      - name: Audit locked desktop dependencies
+      - name: Audit locked desktop dependencies (fail on new or high/critical advisories)
         working-directory: desktop
-        run: npm audit --audit-level=high
+        run: npm run audit:dependencies
       - name: Check desktop JavaScript
         working-directory: desktop
         run: npm run check:js
