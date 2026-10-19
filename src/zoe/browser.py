@@ -129,7 +129,7 @@ class ZoeBrowser:
         response = await page.goto(safe_url, wait_until="domcontentloaded")
         return {
             "success": response is None or response.ok,
-            "url": page.url,
+            "url": redact_sensitive_url(page.url),
             "title": await page.title(),
             "http_status": response.status if response is not None else None,
         }
@@ -177,7 +177,7 @@ class ZoeBrowser:
     async def click(self, selector: str) -> dict[str, Any]:
         page = self._require_page()
         await page.locator(selector).first.click()
-        return {"success": True, "url": page.url, "title": await page.title()}
+        return {"success": True, "url": redact_sensitive_url(page.url), "title": await page.title()}
 
     async def fill(self, selector: str, text: str) -> dict[str, Any]:
         page = self._require_page()
